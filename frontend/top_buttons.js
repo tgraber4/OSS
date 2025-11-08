@@ -11,28 +11,39 @@ function clickDelete() {
 }
 
 
+function toggle_layout_menu()
+{
+    layout_menu_visible = !layout_menu_visible;
+    layout_menu_visible ? layoutMenuTween.play() : layoutMenuTween.reverse(); 
+}
+
+
 function clickLayout1() {
     placedCircles.forEach(c => {
         c.destroy();
     });
+    toggle_layout_menu()
 }
 
 function clickLayout2() {
     placedCircles.forEach(c => {
         c.destroy();
     });
+    toggle_layout_menu()
 }
 
 function clickLayout3() {
     placedCircles.forEach(c => {
         c.destroy();
     });
+    toggle_layout_menu()
 }
 
 function clickLayout4() {
     placedCircles.forEach(c => {
         c.destroy();
     });
+    toggle_layout_menu()
 }
 
 
@@ -71,6 +82,26 @@ layout_group.add(layout_button4.Text);
 
 let layout_menu_visible=false;
 const layoutMenuTween = new Konva.Tween({ node: layout_group, duration:0.4, y:navbarHeight, easing: Konva.Easings.EaseInOut });
-layoutButton.on('click', ()=>{ layout_menu_visible = !layout_menu_visible; layout_menu_visible ? layoutMenuTween.play() : layoutMenuTween.reverse(); });
 
+layoutButton.on('click', ()=>toggle_layout_menu());
 backgroundLayer.draw();
+
+
+
+function draw_circle()
+{
+    var patternPentagon = new Konva.RegularPolygon({
+        x: 220,
+        y: stage.height() / 2,
+        sides: 5,
+        radius: 70,
+        fillPatternImage: img1,
+        fillPatternOffset: { x: -220, y: 70 },
+        stroke: 'white',
+        strokeWidth: 4,
+        draggable: true,
+    });
+
+    uiLayer.add(patternPentagon);
+    backgroundLayer.draw();
+}

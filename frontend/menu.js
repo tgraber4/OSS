@@ -378,76 +378,109 @@ stage.on('click', ()=>{
   backgroundLayer.draw();
 });
 
-// --- Menu circles ---
-celestialBodies.forEach((body, i) => {
-  const circle = new Konva.Circle({
-    x: menuWidth / 2,
-    y: 60 + i * spacing,
-    radius,
-    fill: body.color,
-    stroke: '#555',
-    strokeWidth: 2,
-  });
-
-  const label = new Konva.Text({
-    x: circle.x(),
-    y: circle.y() - radius - 20,
-    text: body.name,
-    fontSize: 14,
-    fill: 'white',
-    align: 'center',
-  });
-  label.offsetX(label.width() / 2)
-
-  // store the planet data
-  circle.setAttr('data', body);
-
-  circle.on('mouseenter', () => {
-    circle.fill(lightenHex(body.color));
-    backgroundLayer.draw();
-  });
-
-  circle.on('mouseleave', () => {
-    circle.fill(body.color);
-    backgroundLayer.draw();
-  });
-
-  circle.on('mousedown', () => {
-    const pos = stage.getPointerPosition();
-
-    const sunRadius = celestialBodies[0].planetRadius;
-    const baseVisualRadius = 50;
-    const exponent = 0.3;
-
-    let scaledRadius;
-    if(body.name === 'Sun') {
-      scaledRadius = baseVisualRadius;
-  } else {
-    scaledRadius = Math.max(5, Math.pow(body.planetRadius / sunRadius, exponent) * baseVisualRadius);
+function loadImages(sources, callback) {
+  var images = {};
+  var loadedImages = 0;
+  var numImages = 0;
+  // get num of sources
+  for (var src in sources) {
+    numImages++;
   }
-    const clone = new Konva.Circle({
-      x: pos.x,
-      y: pos.y,
-      radius: scaledRadius,
-      fill: body.color,
+  for (var src in sources) {
+    images[src] = new Image();
+    images[src].onload = function () {
+      if (++loadedImages >= numImages) {
+        callback(images);
+      }
+    };
+    images[src].src = sources[src];
+  }
+}
+
+var sources = {
+  mercury: 'images/cookie_mercury.png',
+  venus: 'images/venus.png',
+  earth: 'images/ms_paint_earth.png',
+  mars: 'images/mars.png',
+  jupiter: 'images/jupiter.png',
+};
+
+loadImages(sources, draw_planets);
+
+// --- Menu circles ---
+function draw_planets(images)
+{
+  celestialBodies.forEach((body, i) => {
+    const circle = new Konva.Circle({
+      x: menuWidth / 2,
+      y: 60 + i * spacing,
+      radius,
+      fillPatternImage: images.mercury,
+      fillPatternOffset: { x: -220, y: 70 },
       stroke: '#555',
       strokeWidth: 2,
-      draggable: true,
     });
-    // copy planet data into the clone
-    clone.setAttr('data', { ...body });
-    clone.setAttr('fromMenu', true);
+
+    const label = new Konva.Text({
+      x: circle.x(),
+      y: circle.y() - radius - 20,
+      text: body.name,
+      fontSize: 14,
+      fill: 'white',
+      align: 'center',
+    });
+    label.offsetX(label.width() / 2)
+
+    // store the planet data
+    circle.setAttr('data', body);
+
+    circle.on('mouseenter', () => {
+      circle.fill(lightenHex(body.color));
+      backgroundLayer.draw();
+    });
+
+    circle.on('mouseleave', () => {
+      circle.fill(body.color);
+      backgroundLayer.draw();
+    });
+
+    circle.on('mousedown', () => {
+      const pos = stage.getPointerPosition();
+
+      const sunRadius = celestialBodies[0].planetRadius;
+      const baseVisualRadius = 50;
+      const exponent = 0.3;
+
+      let scaledRadius;
+      if(body.name === 'Sun') {
+        scaledRadius = baseVisualRadius;
+    } else {
+      scaledRadius = Math.max(5, Math.pow(body.planetRadius / sunRadius, exponent) * baseVisualRadius);
+    }
+      const clone = new Konva.Circle({
+        x: pos.x,
+        y: pos.y,
+        radius: scaledRadius,
+        fill: body.color,
+        stroke: '#555',
+        strokeWidth: 2,
+        draggable: true,
+      });
+      // copy planet data into the clone
+      clone.setAttr('data', { ...body });
+      clone.setAttr('fromMenu', true);
 
 
-    backgroundLayer.add(clone);
-    makeDraggable(clone);
-    clone.startDrag();
-    placedCircles.push(clone);
-    backgroundLayer.draw();
+      backgroundLayer.add(clone);
+      makeDraggable(clone);
+      clone.startDrag();
+      placedCircles.push(clone);
+      backgroundLayer.draw();
+    });
+
+    menuContentGroup.add(circle, label);
   });
-
-  menuContentGroup.add(circle, label);
-});
+}
 
 
 // --- Scroll menu content with wheel (smooth) ---
