@@ -63,14 +63,40 @@ function makeButton(x, y, w, h, text, layer, clickFn) {
   layer.add(btn, txt);
   btn.on('mouseenter', ()=>{ btn.fill('#777'); layer.draw(); });
   btn.on('mouseleave', ()=>{ btn.fill('#555'); layer.draw(); });
+  
+  btn.on('mouseover', function (e) {
+  e.target.getStage().container().style.cursor = 'pointer';
+  });
+  btn.on('mouseout', function (e) {
+    e.target.getStage().container().style.cursor = 'default';
+  });
+
+  btn.Text = txt;
+
   if(clickFn) btn.on('click', clickFn);
   return btn;
 }
 
 // --- Navbar & buttons ---
+
+function clickPlay() {
+    if (!playButton.clicked)
+    {
+        playButton.Text.setAttr('text', 'Pause');
+        playButton.clicked = true;
+    }
+    else
+    {
+        playButton.Text.setAttr('text', 'Play');
+        playButton.clicked = false;
+    }
+}
+
 uiLayer.add(new Konva.Rect({x:0, y:0, width:stage.width(), height:navbarHeight, fill:'#333'}));
 const menuButton = makeButton(0,0,menuWidth,navbarHeight,'Object Menu', uiLayer),
-      playButton = makeButton(stage.width()-100,0,100,50,'Play', uiLayer);
+      playButton = makeButton(stage.width()-100,0,100,50,'Play', uiLayer, clickPlay);
+
+playButton.clicked = false;
 
 // --- Menu group with clipping ---
 const menuClipHeight = stage.height() - navbarHeight;
