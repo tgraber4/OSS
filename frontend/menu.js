@@ -1,14 +1,14 @@
 // --- Celestial data ---
 const celestialBodies = [
-  { name: 'Sun', color: '#ffcc00', mass: 1.989e30, planetRadius: 696340, velocity: 0, acceleration: 0 },
-  { name: 'Mercury', color: '#bfbfbf', mass: 3.285e23, planetRadius: 2440, velocity: 0, acceleration: 0 },
-  { name: 'Venus', image: './imagesTESTING/venus.png', color: '#e0b24c', mass: 4.867e24, planetRadius: 6052, velocity: 0, acceleration: 0 },
-  { name: 'Earth', image: './imagesTESTING/ms_paint_earth.png', color: '#2a6bd4', mass: 5.972e24, planetRadius: 6371, velocity: 0, acceleration: 0 },
-  { name: 'Mars', image: './imagesTESTING/mars.png', color: '#d14b28', mass: 6.39e23, planetRadius: 3389, velocity: 0, acceleration: 0 },
-  { name: 'Jupiter', color: '#c48a3d', mass: 1.898e27, planetRadius: 69911, velocity: 0, acceleration: 0 },
-  { name: 'Saturn', color: '#d9c073', mass: 5.683e26, planetRadius: 58232, velocity: 0, acceleration: 0 },
-  { name: 'Uranus', color: '#7fc7ff', mass: 8.681e25, planetRadius: 25362, velocity: 0, acceleration: 0 },
-  { name: 'Neptune', color: '#4062fa', mass: 1.024e26, planetRadius: 24622, velocity: 0, acceleration: 0 },
+  { name: 'Sun', color: '#ffcc00', mass: 1.989e30, planetRadius: 696340, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Mercury', color: '#bfbfbf', mass: 3.285e23, planetRadius: 2440, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Venus', image: './imagesTESTING/venus.png', color: '#e0b24c', mass: 4.867e24, planetRadius: 6052, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Earth', image: './imagesTESTING/ms_paint_earth.png', color: '#2a6bd4', mass: 5.972e24, planetRadius: 6371, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Mars', image: './imagesTESTING/mars.png', color: '#d14b28', mass: 6.39e23, planetRadius: 3389, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Jupiter', color: '#c48a3d', mass: 1.898e27, planetRadius: 69911, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Saturn', color: '#d9c073', mass: 5.683e26, planetRadius: 58232, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Uranus', color: '#7fc7ff', mass: 8.681e25, planetRadius: 25362, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Neptune', color: '#4062fa', mass: 1.024e26, planetRadius: 24622, speed: 0, direction: 0, acceleration: 0 },
 ];
 
 
@@ -240,7 +240,8 @@ function showTooltip(circle) {
     { label: 'Name', key: 'name', editable: false },
     { label: 'Radius', key: 'planetRadius', suffix: ' km', editable: true },
     { label: 'Mass', key: 'mass', suffix: ' kg', editable: true },
-    { label: 'Velocity', key: 'velocity', suffix: ' m/s', editable: true },
+    { label: 'Speed', key: 'speed', suffix: ' km/s', editable: true },
+    { label: 'Direction', key: 'direction', suffix: '\u00B0', editable: true },
     { label: 'Acceleration', key: 'acceleration', suffix: ' m/s²', editable: false }
   ];
 
@@ -296,8 +297,20 @@ function showTooltip(circle) {
         input.focus();
 
         const commit = () => {
-          const val = parseFloat(input.value);
+          let val = parseFloat(input.value);
           if (!isNaN(val)) {
+            if(field.key === 'planetRadius') {
+              val = Math.max(1, Math.min(celestialBodies[0].planetRadius, val));
+              data[field.key] = val;
+              circle.radius(Math.pow(val / celestialBodies[0].planetRadius, 0.3) * 50)
+
+              resolveCollision(circle);
+              t.text(`${field.label}: ${val}${field.suffix || ''}`);
+              backgroundLayer.draw();
+            }
+            if(field.key === 'speed') val = Math.max(0, Math.min(500, val));
+            if(field.key === 'direction') val = ((val % 360) + 360) % 360;
+
             data[field.key] = val;
             t.text(`${field.label}: ${val}${field.suffix || ''}`);
             backgroundLayer.draw();
@@ -315,23 +328,6 @@ function showTooltip(circle) {
     tooltip.add(t);
   });
 
-  // --- Close button ---
-  const closeBtn = new Konva.Rect({
-    x: box.x() + box.width - 18,
-    y: box.y() + 6,
-    width: 12,
-    height: 12,
-    fill: 'red',
-    cornerRadius: 2,
-    listening: true
-  });
-  closeBtn.on('click', (e) => {
-    e.cancelBubble = true;
-    tooltip.destroy();
-    circle._tooltip = null;
-    backgroundLayer.draw();
-  });
-  tooltip.add(closeBtn);
 
   // --- Delete button ---
   const deleteBtnY = startY + fields.length * lineHeight + 10;
@@ -391,10 +387,6 @@ function showTooltip(circle) {
   circle._tooltip = tooltip;
   return tooltip;
 }
-
-
-
-
 
 // --- Stage click closes tooltip ---
 stage.on('click', ()=>{
@@ -505,6 +497,46 @@ stage.on('wheel', (e)=>{
     backgroundLayer.batchDraw();
   }
 });
+
+function resolveCollision(circle) {
+  const maxIterations = 10; // avoid infinite loops
+  let iteration = 0;
+  let collided = true;
+
+  while (collided && iteration < maxIterations) {
+    collided = false;
+    iteration++;
+
+    for (let other of placedCircles) {
+      if (other === circle) continue;
+
+      let dx = circle.x() - other.x();
+      let dy = circle.y() - other.y();
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      const minDist = circle.radius() + other.radius();
+
+      if (distance < minDist) {
+        collided = true;
+
+        // handle exact same position
+        if (distance === 0) {
+          dx = Math.random() - 0.5;
+          dy = Math.random() - 0.5;
+          distance = Math.sqrt(dx * dx + dy * dy);
+        }
+
+        const overlap = minDist - distance;
+        const nx = dx / distance;
+        const ny = dy / distance;
+
+        // move circle just outside the other
+        circle.x(circle.x() + nx * overlap);
+        circle.y(circle.y() + ny * overlap);
+      }
+    }
+  }
+}
+
 
 // --- Menu tween ---
 let menuVisible=false;
