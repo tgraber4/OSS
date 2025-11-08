@@ -2,9 +2,9 @@
 const celestialBodies = [
   { name: 'Sun', color: '#ffcc00', mass: 1.989e30, planetRadius: 696340, velocity: 0, acceleration: 0 },
   { name: 'Mercury', color: '#bfbfbf', mass: 3.285e23, planetRadius: 2440, velocity: 0, acceleration: 0 },
-  { name: 'Venus', color: '#e0b24c', mass: 4.867e24, planetRadius: 6052, velocity: 0, acceleration: 0 },
-  { name: 'Earth', color: '#2a6bd4', mass: 5.972e24, planetRadius: 6371, velocity: 0, acceleration: 0 },
-  { name: 'Mars', color: '#d14b28', mass: 6.39e23, planetRadius: 3389, velocity: 0, acceleration: 0 },
+  { name: 'Venus', image: './imagesTESTING/venus.png', color: '#e0b24c', mass: 4.867e24, planetRadius: 6052, velocity: 0, acceleration: 0 },
+  { name: 'Earth', image: './imagesTESTING/ms_paint_earth.png', color: '#2a6bd4', mass: 5.972e24, planetRadius: 6371, velocity: 0, acceleration: 0 },
+  { name: 'Mars', image: './imagesTESTING/mars.png', color: '#d14b28', mass: 6.39e23, planetRadius: 3389, velocity: 0, acceleration: 0 },
   { name: 'Jupiter', color: '#c48a3d', mass: 1.898e27, planetRadius: 69911, velocity: 0, acceleration: 0 },
   { name: 'Saturn', color: '#d9c073', mass: 5.683e26, planetRadius: 58232, velocity: 0, acceleration: 0 },
   { name: 'Uranus', color: '#7fc7ff', mass: 8.681e25, planetRadius: 25362, velocity: 0, acceleration: 0 },
@@ -30,10 +30,6 @@ function lightenHex(hex, amount = 0x11) {
     // Convert back to hex string
     return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
-
-
-
-
 
 
 const stage = new Konva.Stage({
@@ -117,235 +113,287 @@ function makeDraggable(circle) {
     dragging = true;
     circle._lastValidPosition = { x: circle.x(), y: circle.y() };
 
-    // Destroy tooltip if it exists
-    if(circle._tooltip){ 
-      circle._tooltip.destroy(); 
-      circle._tooltip = null; 
-      backgroundLayer.draw(); 
+    if (circle._tooltip) {
+      circle._tooltip.destroy();
+      circle._tooltip = null;
+      backgroundLayer.draw();
     }
 
     deleteZone.show();
     backgroundLayer.draw();
 
-
-    if(circle.getAttr('fromMenu') && menuVisible){ menuTween.reverse(); menuVisible=false; }
+    if (circle.getAttr('fromMenu') && menuVisible) {
+      menuTween.reverse();
+      menuVisible = false;
+    }
+    circle.moveToTop();
   });
 
   circle.on('dragmove', () => {
-    // Show delete zone
-    if(inDeleteZone(circle)){ deleteZone.opacity(0.9); deleteZone.shadowBlur(40); }
-    else { deleteZone.opacity(0.6); deleteZone.shadowBlur(0); }
-
-    // Prevent overlap by checking next position
-    const pos = {x: circle.x(), y: circle.y()};
-    const collided = placedCircles.some(other => {
-      if(other === circle) return false;
-      const oRect = other.getClientRect();
-      const cRect = {
-        x: pos.x - circle.radius(),
-        y: pos.y - circle.radius(),
-        width: circle.radius()*2,
-        height: circle.radius()*2
-      };
-      return !(cRect.x + cRect.width < oRect.x || cRect.x > oRect.x + oRect.width ||
-               cRect.y + cRect.height < oRect.y || cRect.y > oRect.y + oRect.height);
-    });
-
-    if(collided){
-      circle.position(circle._lastValidPosition);
+    circle.moveToTop();
+    if (inDeleteZone(circle)) {
+      deleteZone.opacity(0.9);
+      deleteZone.shadowBlur(40);
     } else {
-      circle._lastValidPosition = pos;
+      deleteZone.opacity(0.6);
+      deleteZone.shadowBlur(0);
     }
 
     backgroundLayer.batchDraw();
   });
 
   circle.on('dragend', () => {
-    if(inDeleteZone(circle)){
-      circle.destroy();
-      const idx = placedCircles.indexOf(circle);
-      if(idx!==-1) placedCircles.splice(idx,1);
-    } else {
-      circle.moveToBottom();
-    }
+  const maxIterations = 10; // prevent infinite loop
+  let iteration = 0;
+  let collided = true;
 
-    deleteZone.hide();
-    deleteZone.shadowBlur(0);
-    deleteZone.opacity(0.6);
-    backgroundLayer.draw();
+  while (collided && iteration < maxIterations) {
+    collided = false;
+    iteration++;
 
-    if(circle.getAttr('fromMenu') && !menuVisible){ menuTween.play(); menuVisible=true;}
-    dragging=false;
-    circle.setAttr('fromMenu', false);
-  });
+    for (let other of placedCircles) {
+      if (other === circle) continue;
 
-  circle.on('click', (e)=>{
-    if(!dragging){
-      // Destroy previous tooltip
-      placedCircles.forEach(c=>{ if(c._tooltip) { c._tooltip.destroy(); c._tooltip=null; } });
-      circle._tooltip = showTooltip(circle);
-      backgroundLayer.draw();
-      e.cancelBubble = true; // prevent stage click
-    }
-  });
-}
+      let dx = circle.x() - other.x();
+      let dy = circle.y() - other.y();
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      const minDist = circle.radius() + other.radius();
 
-// --- Tooltip ---
-function showTooltip(circle){
-  const data = circle.getAttr('data') || {};
-  const tooltip = new Konva.Group({
-    x: circle.x(),
-    y: circle.y() - circle.radius() - 175, // a bit closer
-    listening: true
-  });
+      if (distance < minDist) {
+        collided = true;
+        // Avoid divide by zero
+        if (distance === 0) {
+          dx = Math.random() - 0.5;
+          dy = Math.random() - 0.5;
+          distance = Math.sqrt(dx * dx + dy * dy);
+        }
 
-  const box = new Konva.Rect({
-    x: -50, y: -30, width: 150, height: 200,
-    fill: 'black', opacity: 0.9, listening: true
-  });
+        const overlap = minDist - distance;
+        const nx = dx / distance;
+        const ny = dy / distance;
 
-  const padding = 10;
-  const text = new Konva.Text({
-    x: box.x() + padding, y: box.y() + 10, text: `Name: ${data.name}\nRadius: ${data.planetRadius}km\nMass: ${data.mass}kg\nVelocity: ${data.velocity}m/s\nAcceleration: ${data.acceleration}m/s^2`, fontSize: 14,
-    fill: 'white', align: 'left'
-  });
-  // make the text non-listening so clicks pass to buttons underneath
-  text.listening(true);
-
-  text.on('click', (e) => {
-  e.cancelBubble = true;
-
-  const data = circle.getAttr('data');
-  const canvasBox = stage.container().getBoundingClientRect();
-  const tooltipPos = tooltip.getClientRect();
-
-  // Fields to edit and their line indices in the tooltip
-  const editableFields = [
-    { key: 'planetRadius', lineIndex: 1 },
-    { key: 'mass', lineIndex: 2 },
-    { key: 'velocity', lineIndex: 3 }
-  ];
-  const lineHeight = text.fontSize() + 2;
-
- editableFields.forEach((field, idx) => {
-  const inputLeft = canvasBox.left + tooltipPos.x + tooltipPos.width + 5;
-  const inputTop  = canvasBox.top + tooltipPos.y + 10 + idx * (lineHeight + 10); // 8px extra spacing
-
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.value = data[field.key];
-  input.style.position = 'absolute';
-  input.style.left = `${inputLeft}px`;
-  input.style.top = `${inputTop}px`;
-  input.style.width = '60px';  // slightly narrower to fit multiple fields
-  input.style.fontSize = `${text.fontSize()}px`;
-  input.style.background = 'rgba(0,0,0,0.8)';
-  input.style.color = 'white';
-  input.style.border = '1px solid #555';
-  input.style.padding = '2px 4px';
-  input.style.marginBottom = '4px';
-  input.style.outline = 'none';
-
-
-    document.body.appendChild(input);
-    input.focus();
-
-    input.addEventListener('blur', () => {
-      const value = parseFloat(input.value);
-      if (!isNaN(value)) {
-        circle.getAttr('data')[field.key] = value;
-
-        // Update tooltip text
-        const d = circle.getAttr('data');
-        text.text(`Name: ${d.name}\nRadius: ${d.planetRadius}km\nMass: ${d.mass}kg\nVelocity: ${d.velocity}m/s\nAcceleration: ${d.acceleration}m/s^2`);
-        backgroundLayer.draw();
+        circle.x(circle.x() + nx * overlap);
+        circle.y(circle.y() + ny * overlap);
       }
-      document.body.removeChild(input);
-    });
+    }
+  }
 
-    input.addEventListener('keydown', (evt) => {
-      if (evt.key === 'Enter') input.blur();
-    });
-  });
+  // Delete zone logic
+  if (inDeleteZone(circle)) {
+    circle.destroy();
+    const idx = placedCircles.indexOf(circle);
+    if (idx !== -1) placedCircles.splice(idx, 1);
+  } else {
+    circle.moveToBottom();
+  }
+
+  deleteZone.hide();
+  deleteZone.shadowBlur(0);
+  deleteZone.opacity(0.6);
+  backgroundLayer.draw();
+
+  if (circle.getAttr('fromMenu') && !menuVisible) {
+    menuTween.play();
+    menuVisible = true;
+  }
+
+  circle.setAttr('fromMenu', false);
+  dragging = false;
 });
 
 
+  circle.on('click', e => {
+    if (!dragging) {
+      placedCircles.forEach(c => { if (c._tooltip) { c._tooltip.destroy(); c._tooltip = null; } });
+      circle._tooltip = showTooltip(circle);
+      backgroundLayer.draw();
+      e.cancelBubble = true;
+    }
+  });
 
+}
+
+// --- Tooltip ---
+function showTooltip(circle) {
+  const data = circle.getAttr('data') || {};
+  const tooltip = new Konva.Group({
+    x: circle.x(),
+    y: circle.y() - circle.radius() - 175,
+    listening: true
+  });
+
+  const boxWidth = 160, boxHeight = 200;
+  const box = new Konva.Rect({
+    x: -60,
+    y: -30,
+    width: boxWidth,
+    height: boxHeight,
+    fill: 'black',
+    opacity: 0.9,
+    cornerRadius: 6,
+    listening: true
+  });
+
+  tooltip.add(box);
+
+  const fields = [
+    { label: 'Name', key: 'name', editable: false },
+    { label: 'Radius', key: 'planetRadius', suffix: ' km', editable: true },
+    { label: 'Mass', key: 'mass', suffix: ' kg', editable: true },
+    { label: 'Velocity', key: 'velocity', suffix: ' m/s', editable: true },
+    { label: 'Acceleration', key: 'acceleration', suffix: ' m/s²', editable: false }
+  ];
+
+  const startY = box.y() + 12;
+  const lineHeight = 20;
+
+  fields.forEach((field, i) => {
+    const y = startY + i * lineHeight;
+    const t = new Konva.Text({
+      x: box.x() + 10,
+      y,
+      text: `${field.label}: ${data[field.key]}${field.suffix || ''}`,
+      fontSize: 14,
+      fill: '#fff',
+      listening: field.editable // only editable lines will respond to events
+    });
+
+    if (field.editable) {
+      // Hover highlight for editable lines
+      t.on('mouseenter', () => {
+        t.fill('#0ff');
+        backgroundLayer.draw();
+        stage.container().style.cursor = 'pointer';
+      });
+      t.on('mouseleave', () => {
+        t.fill('#fff');
+        backgroundLayer.draw();
+        stage.container().style.cursor = 'default';
+      });
+
+      // Inline editing for editable lines
+      t.on('click', (e) => {
+        e.cancelBubble = true;
+        const canvasBox = stage.container().getBoundingClientRect();
+        const textBox = t.getClientRect();
+        const input = document.createElement('input');
+
+        input.type = 'number';
+        input.value = data[field.key];
+        input.style.position = 'absolute';
+        input.style.left = `${canvasBox.left + textBox.x + textBox.width + 5}px`;
+        input.style.top = `${canvasBox.top + textBox.y}px`;
+        input.style.width = '80px';
+        input.style.fontSize = '14px';
+        input.style.background = 'rgba(0,0,0,0.85)';
+        input.style.color = 'white';
+        input.style.border = '1px solid #777';
+        input.style.padding = '2px 4px';
+        input.style.outline = 'none';
+        input.style.zIndex = 1000;
+
+        document.body.appendChild(input);
+        input.focus();
+
+        const commit = () => {
+          const val = parseFloat(input.value);
+          if (!isNaN(val)) {
+            data[field.key] = val;
+            t.text(`${field.label}: ${val}${field.suffix || ''}`);
+            backgroundLayer.draw();
+          }
+          document.body.removeChild(input);
+        };
+
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', (evt) => {
+          if (evt.key === 'Enter') input.blur();
+        });
+      });
+    }
+
+    tooltip.add(t);
+  });
+
+  // --- Close button ---
   const closeBtn = new Konva.Rect({
-    x: box.x() + box.width() - 18,
+    x: box.x() + box.width - 18,
     y: box.y() + 6,
-    width: 12, height: 12, fill: 'red', cornerRadius: 2, listening: true
+    width: 12,
+    height: 12,
+    fill: 'red',
+    cornerRadius: 2,
+    listening: true
   });
   closeBtn.on('click', (e) => {
-    e.cancelBubble = true;              // stop stage handler
+    e.cancelBubble = true;
     tooltip.destroy();
     circle._tooltip = null;
     backgroundLayer.draw();
   });
+  tooltip.add(closeBtn);
 
-  // Delete button (rect) — text on top is non-listening so clicks hit this rect
+  // --- Delete button ---
+  const deleteBtnY = startY + fields.length * lineHeight + 10;
   const deleteBtn = new Konva.Rect({
     x: box.x() + 10,
-    y: box.y() + box.height() - 34,
+    y: deleteBtnY,
     width: 100,
-    height: 24,
+    height: 26,
     fill: '#c33',
     cornerRadius: 4,
     listening: true
   });
 
   const deleteText = new Konva.Text({
-    x: deleteBtn.x() + deleteBtn.width()/2,
-    y: deleteBtn.y() + deleteBtn.height()/2,
+    x: deleteBtn.x() + deleteBtn.width() / 2,
+    y: deleteBtn.y() + deleteBtn.height() / 2,
     text: 'Delete',
     fontSize: 14,
     fill: 'white'
   });
-  deleteText.offsetX(deleteText.width()/2);
-  deleteText.offsetY(deleteText.height()/2);
-  deleteText.listening(false); // allow rect to receive the click
+  deleteText.offsetX(deleteText.width() / 2);
+  deleteText.offsetY(deleteText.height() / 2);
+  deleteText.listening(false);
 
-deleteBtn.on('click', (e) => {
-  e.cancelBubble = true;
-
-  // Fade out both tooltip and circle smoothly
-  const fadeDuration = 0.1;
-
-  const fadeOutCircle = new Konva.Tween({
-    node: circle,
-    duration: fadeDuration,
-    opacity: 0,
-    onFinish: () => {
-      const idx = placedCircles.indexOf(circle);
-      if (idx !== -1) placedCircles.splice(idx, 1);
-      circle.destroy();
-      backgroundLayer.draw();
-    }
+  deleteBtn.on('mouseenter', () => {
+    deleteBtn.fill('#e44');
+    backgroundLayer.draw();
+    stage.container().style.cursor = 'pointer';
+  });
+  deleteBtn.on('mouseleave', () => {
+    deleteBtn.fill('#c33');
+    backgroundLayer.draw();
+    stage.container().style.cursor = 'default';
   });
 
-  const fadeOutTooltip = new Konva.Tween({
-    node: tooltip,
-    duration: fadeDuration,
-    opacity: 0,
-    onFinish: () => {
-      tooltip.destroy();
-      circle._tooltip = null;
-      backgroundLayer.draw();
-    }
+  deleteBtn.on('click', (e) => {
+    e.cancelBubble = true;
+    const fadeOutTooltip = new Konva.Tween({
+      node: tooltip,
+      duration: 0.1,
+      opacity: 0,
+      onFinish: () => {
+        tooltip.destroy();
+        circle._tooltip = null;
+        circle.destroy();
+        const idx = placedCircles.indexOf(circle);
+        if (idx !== -1) placedCircles.splice(idx, 1);
+        backgroundLayer.draw();
+      }
+    });
+    fadeOutTooltip.play();
   });
 
-  fadeOutCircle.play();
-  fadeOutTooltip.play();
-});
-
-
-  tooltip.add(box, text, closeBtn, deleteBtn, deleteText);
+  tooltip.add(deleteBtn, deleteText);
   backgroundLayer.add(tooltip);
 
-  // keep a reference so other code can close it
   circle._tooltip = tooltip;
   return tooltip;
 }
+
+
+
 
 
 // --- Stage click closes tooltip ---
@@ -387,40 +435,55 @@ celestialBodies.forEach((body, i) => {
     circle.fill(body.color);
     backgroundLayer.draw();
   });
+circle.on('mousedown', () => {
+  const pos = stage.getPointerPosition();
 
-  circle.on('mousedown', () => {
-    const pos = stage.getPointerPosition();
+  const sunRadius = celestialBodies[0].planetRadius;
+  const baseVisualRadius = 50;
+  const exponent = 0.3;
 
-    const sunRadius = celestialBodies[0].planetRadius;
-    const baseVisualRadius = 50;
-    const exponent = 0.3;
+  let scaledRadius = body.name === 'Sun'
+    ? baseVisualRadius
+    : Math.max(5, Math.pow(body.planetRadius / sunRadius, exponent) * baseVisualRadius);
 
-    let scaledRadius;
-    if(body.name === 'Sun') {
-      scaledRadius = baseVisualRadius;
+  const clone = new Konva.Circle({
+    x: pos.x,
+    y: pos.y,
+    radius: scaledRadius,
+    stroke: '#555',
+    strokeWidth: 2,
+    fill: body.color, // fallback fill
+    draggable: true,
+  });
+
+  clone.setAttr('data', { ...body });
+  clone.setAttr('fromMenu', true);
+  backgroundLayer.add(clone);
+
+  // Only start drag AFTER image is loaded (if any)
+  if (body.image) {
+    const img = new Image();
+    img.src = body.image;
+    img.onload = () => {
+      clone.fillPatternImage(img);
+      const scale = scaledRadius / Math.max(img.width, img.height);
+      clone.fillPatternScale({ x: scale, y: scale });
+      clone.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
+      clone.fillPatternRepeat('no-repeat');
+      backgroundLayer.draw();
+
+      makeDraggable(clone);
+      clone.startDrag();
+      placedCircles.push(clone);
+    };
   } else {
-    scaledRadius = Math.max(5, Math.pow(body.planetRadius / sunRadius, exponent) * baseVisualRadius);
-  }
-    const clone = new Konva.Circle({
-      x: pos.x,
-      y: pos.y,
-      radius: scaledRadius,
-      fill: body.color,
-      stroke: '#555',
-      strokeWidth: 2,
-      draggable: true,
-    });
-    // copy planet data into the clone
-    clone.setAttr('data', { ...body });
-    clone.setAttr('fromMenu', true);
-
-
-    backgroundLayer.add(clone);
     makeDraggable(clone);
     clone.startDrag();
     placedCircles.push(clone);
-    backgroundLayer.draw();
-  });
+  }
+});
+
+
 
   menuContentGroup.add(circle, label);
 });
