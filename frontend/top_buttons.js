@@ -1,17 +1,4 @@
 
-function clickPlay() {
-    if (!playButton.clicked)
-    {
-        playButton.Text.setAttr('text', 'Pause');
-        playButton.clicked = true;
-    }
-    else
-    {
-        playButton.Text.setAttr('text', 'Play');
-        playButton.clicked = false;
-    }
-}
-
 
 function clickReset() {
 
