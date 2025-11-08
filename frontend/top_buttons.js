@@ -1,13 +1,36 @@
 
+function clickPlay() {
+    if (!playButton.clicked)
+    {
+        playButton.Text.setAttr('text', 'Pause');
+        playButton.clicked = true;
+    }
+    else
+    {
+        playButton.Text.setAttr('text', 'Play');
+        playButton.clicked = false;
+    }
+}
+
+
 function clickReset() {
+
+}
+
+function clickDelete() {
     placedCircles.forEach(c => {
-        c._tooltip.destroy();
+        c.destroy();
     });
 }
 
 
+function Clicklayout() {
+
+}
+
+
 const resetButton = makeButton(stage.width()-200, 0, 100, navbarHeight,'Reset', uiLayer, clickReset);
-const layoutButton = makeButton(stage.width()-300, 0, 100, navbarHeight,'Delete', uiLayer);
-const eraseButton = makeButton(stage.width()-400, 0, 100, navbarHeight,'Layout', uiLayer);
+const layoutButton = makeButton(stage.width()-300, 0, 100, navbarHeight,'Delete', uiLayer, clickDelete);
+const eraseButton = makeButton(stage.width()-400, 0, 100, navbarHeight,'Layout', uiLayer, Clicklayout);
 
 

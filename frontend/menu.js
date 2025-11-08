@@ -79,19 +79,7 @@ function makeButton(x, y, w, h, text, layer, clickFn) {
 
 // --- Navbar & buttons ---
 
-function clickPlay() {
-    if (!playButton.clicked)
-    {
-        playButton.Text.setAttr('text', 'Pause');
-        playButton.clicked = true;
-    }
-    else
-    {
-        playButton.Text.setAttr('text', 'Play');
-        playButton.clicked = false;
-    }
-}
-
+var clickPlay;
 uiLayer.add(new Konva.Rect({x:0, y:0, width:stage.width(), height:navbarHeight, fill:'#333'}));
 const menuButton = makeButton(0,0,menuWidth,navbarHeight,'Object Menu', uiLayer),
       playButton = makeButton(stage.width()-100,0,100,50,'Play', uiLayer, clickPlay);
