@@ -1,0 +1,7 @@
+# name, mass, distance from sun (km), velocity (km/s)
+Sun, 1.989e30, 0, 0
+Mercury, 3.302e23, 57910000, 47.87
+Venus, 4.8675e24, 108210000, 35.02
+Earth, 5.972e24, 149597870, 29.785
+Mars, 6.4191e23, 230000000, 24.13
+Jupiter, 1.8982e27, 778479000, 13.06
