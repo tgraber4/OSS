@@ -11,6 +11,7 @@ const celestialBodies = [
   { name: 'Neptune', color: '#4062fa', mass: 1.024e26, planetRadius: 24622, velocity: 0, acceleration: 0 },
 ];
 const backendUrl = "http://127.0.0.1:5000";
+
 let updateInterval = null;
 var objects = [];
 var playDataObjects = [];
@@ -29,9 +30,7 @@ var addObject = function (customObject) {
     objects.push([objectsCurIndex, customObject]);
     objectsCurIndex++;
     getParams();
-    if (objectsCurIndex == 2) {
-        getRequestFromBackend();
-    }
+    
 }
 
 var deleteObject = function (customObject) {
@@ -78,6 +77,7 @@ function sendPlayRequestToBackend() {
     
     // Convert playDataObjects to the format your backend expects
     const planetsData = playDataObjects.map(obj => ({
+        id: obj.id,
         pos: [obj.posx, obj.posy],
         mass: obj.mass,
         vel_mag: obj.velocity,
@@ -99,15 +99,27 @@ function getRequestFromBackend() {
     fetch("http://127.0.0.1:5000/update_positions")
     .then(res => res.json())
     .then(data => {
+        console.log("test");
         if (data.planets) {
-            const positionArray = data.planets.map((planet, index) => {
-                return [index, planet.pos[0], planet.pos[1]];
+            const positionArray = data.planets.map((planet) => {
+                return [planet.id, planet.pos[0], planet.pos[1]];
             });
             updatePositions(positionArray);
             backgroundLayer.draw();
         }
     })
     .catch(error => console.error("Error fetching positions:", error));
+}
+
+function sendPauseToBackend() {
+  fetch("http://127.0.0.1:5000/pause_simulation", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planets: planetsData })
+    })
+    .then(res => res.json())
+    .then(data => console.log("Simulation started:", data))
+    .catch(error => console.error("Error starting simulation:", error));
 }
 
 function lightenHex(hex, amount = 0x11) {
@@ -185,22 +197,7 @@ function clickPlay() {
         
         // Start the update loop
         updateInterval = setInterval(() => {
-            fetch(`${backendUrl}/update_positions`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.planets) {
-                    // Update each circle's position based on backend data
-                    data.planets.forEach((planet, index) => {
-                        const circle = placedCircles[index];
-                        if (circle) {
-                            circle.x(planet.pos[0]);
-                            circle.y(planet.pos[1]);
-                        }
-                    });
-                    backgroundLayer.batchDraw();
-                }
-            })
-            .catch(error => console.error("Error fetching positions:", error));
+            getRequestFromBackend()
         }, 17); // ~60 FPS
 
     } else {

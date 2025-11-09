@@ -1,10 +1,8 @@
-from math import cos, sin, pi
-import copy
+from math import cos, sin, pi, atan2
 
 class SimulationManager:
     def __init__(self):
         self.planets = []
-        self.initial_planets = []
         self.dt = .5
         self.running = False
 
@@ -12,6 +10,7 @@ class SimulationManager:
         """Initialize simulation with planets sent from frontend."""
         self.planets = []
         for obj in planets_data:
+            thingid = obj.get("id", 0)
             pos = obj.get("pos", [0, 0])
             mass = obj.get("mass", 1)
             vel_mag = obj.get("vel_mag", 0)
@@ -21,15 +20,14 @@ class SimulationManager:
             vx = vel_mag * cos(vel_deg * pi / 180)
             vy = vel_mag * sin(vel_deg * pi / 180)
 
-            self.planets.append(Planet(p=pos, m=mass, v=(vx, vy)))
+            self.planets.append(Planet(thingid=thingid, p=pos, m=mass, v=(vx, vy)))
         # Store initial planets as deep copies of Planet objects for reset
-        self.initial_planets = [copy.deepcopy(p) for p in self.planets]
         self.running = True
 
     def update(self):
         """Advance the simulation one time step and return updated data."""
         if not self.running:
-            return self._get_planet_data()
+            return self._get_planet_data_2()
 
         # Apply gravity and handle collisions
         for i, p1 in enumerate(self.planets):
@@ -45,23 +43,24 @@ class SimulationManager:
         for p in self.planets:
             p.update_movement(self.dt)
 
-        return self._get_planet_data()
+        return self._get_planet_data_2()
 
     def pause(self):
         """Pause the simulation."""
         self.running = False
         return self._get_planet_data()
 
-    def reset(self):
-        """Reset simulation to initial planets."""
-        self.planets = [copy.deepcopy(p) for p in self.initial_planets]
-        self.running = False
-        return self._get_planet_data()
-
-    def _get_planet_data(self):
+    def _get_planet_data_2(self):
         """Helper to return all planet info in JSON-friendly format."""
         return [
-            {"pos": [p.pos.x, p.pos.y], "vel": [p.vel.x, p.vel.y], "mass": p.mass}
+            {"id": p.thingid, "pos": [p.pos.x, p.pos.y]}
+            for p in self.planets
+        ]
+    
+    def _get_planet_data(self):
+        """Helper to return all planet info in JSON-friendly format."""
+        return [ # (p.vel.x**2, p.vel.y**2)**0.5, atan2(-p.vel.y, p.vel.x)
+            {"id": p.thingid, "pos": [p.pos.x, p.pos.y], "vel": [p.vel.x, p.vel.y], "mass": p.mass}
             for p in self.planets
         ]
 
@@ -103,7 +102,8 @@ class Vector:
 
 class Planet:
     
-    def __init__(self, p = (0.0, 0.0), r = 14, m = 50000, v = (0.0, 0.0), s = False):
+    def __init__(self, thingid=0, p = (0.0, 0.0), r = 14, m = 50000, v = (0.0, 0.0), s = False):
+        self.thingid = thingid
         self.pos = Vector(p[0], p[1])
         self.radius = r
         self.mass = m
@@ -126,7 +126,7 @@ class Planet:
         radius = (self.radius*self.radius + planet.radius*planet.radius)**0.5
         mass = self.mass+planet.mass
         vel = (self.vel * self.mass + planet.vel * planet.mass) / mass
-        return Planet((self.pos + planet.pos)/2, radius, mass, vel)
+        return Planet(self.thingid, (self.pos + planet.pos)/2, radius, mass, vel)
     
     def update_collision(self, planet, dt):
         dist = self.pos-planet.pos

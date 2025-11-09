@@ -25,7 +25,7 @@ def update_positions():
         "planets": sim.update()
     }), 200
 
-@app.route("/pause_simulation", methods=["POST"])
+@app.route("/pause_simulation", methods=["GET"])
 def pause_simulation():
     """Pause the simulation and return current planet data."""
     return jsonify({
@@ -36,11 +36,10 @@ def pause_simulation():
 @app.route("/reset_simulation", methods=["POST"])
 def reset_simulation():
     """Reset simulation to initial state."""
-    sim.reset()
     return jsonify({
         "status": "reset",
-        "planets": sim._get_planet_data()
     }), 200
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
+
