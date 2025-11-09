@@ -85,7 +85,6 @@ var updatePositions = function (positionArray) {
 function sendPlayRequestToBackend() {
     getParams();
     
-    // Convert playDataObjects to the format your backend expects
     const planetsData = playDataObjects.map(obj => ({
         id: obj.id,
         pos: [obj.posx, obj.posy],
@@ -148,6 +147,7 @@ function updateObjectsUponPause (data) {
     
 }
 
+// function ran when Play button pressed
 function clickPlay() {
     if (!playButton.clicked) {
         playButton.Text.setAttr('text', 'Pause');
@@ -461,15 +461,15 @@ function makeDraggable(circle) {
 // --- Tooltip ---
 function showTooltip(circle) {
   const data = circle.getAttr('data') || {};
-  const tooltipWidth = 160;  // width of tooltip box
-const tooltipHeight = 180; // height of tooltip box
+const tooltipWidth = 160;
+const tooltipHeight = 180; 
 const spacing = 10;
 
-// horizontal: center above the circle
+
 let tooltipX = circle.x() - tooltipWidth / 2;
 
-// vertical: just above the circle, but not above navbar
-let tooltipY = circle.y() - circle.radius() - tooltipHeight - spacing; // 10px spacing
+
+let tooltipY = circle.y() - circle.radius() - tooltipHeight - spacing;
 
 if (tooltipY < navbarHeight + spacing) {
   tooltipY = circle.y() + circle.radius() + spacing;
@@ -730,7 +730,7 @@ celestialBodies.forEach((body, i) => {
 
 
 
-// --- Scroll menu content with wheel (smooth) ---
+// --- Scroll menu content with wheel  ---
 let menuScrollOffset = 0;
 const totalHeight = colors.length*spacing + 120;
 const maxScroll = Math.max(0, totalHeight - menuClipHeight);
@@ -740,7 +740,7 @@ stage.on('wheel', (e)=>{
   if(!pointer) return;
   if(pointer.x <= menuWidth && pointer.y >= navbarHeight){
     e.evt.preventDefault();
-    menuScrollOffset += e.evt.deltaY * 0.5; // scaled smooth
+    menuScrollOffset += e.evt.deltaY * 0.5;
     menuScrollOffset = Math.max(0, Math.min(maxScroll, menuScrollOffset));
     menuContentGroup.y(-menuScrollOffset);
     backgroundLayer.batchDraw();

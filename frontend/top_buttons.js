@@ -1,12 +1,5 @@
 
 
-
-
-
-
-
-
-
 function clickReset() {
     console.log(resetCopy)
     clickDelete();
@@ -21,6 +14,7 @@ function clickReset() {
     backgroundLayer.draw();
 }
 
+// function ran when clear button pressed
 function clickDelete() {
     placedCircles.forEach(c => {
         c.getAttr('arrow').destroy();
@@ -35,6 +29,7 @@ function toggle_layout_menu()
     layout_menu_visible ? layoutMenuTween.play() : layoutMenuTween.reverse(); 
 }
 
+// helper function for creating planets
 function createPlanet(planet_id, x, y, v_mag, v_deg)
 {
     const sunRadius = celestialBodies[0].planetRadius;
@@ -54,6 +49,8 @@ function createPlanet(planet_id, x, y, v_mag, v_deg)
     addObject(clone)
     return clone;
 }
+
+// --- Layouts ---
 
 function clickLayout1() {
     clickDelete();
@@ -101,6 +98,7 @@ function clickLayout4() {
 
     toggle_layout_menu()
 }
+
 
 
 const resetButton = makeButton(stage.width()-200, 0, 100, navbarHeight,'', uiLayer, clickReset);
