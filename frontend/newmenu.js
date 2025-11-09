@@ -130,13 +130,15 @@ function sendPauseToBackend() {
 function updateObjectsUponPause (data) {
     console.log("Simulation paused:", data.planets.length)
     for (var i =0; i < data.planets.length; i++) {
-        console.log(data.planets[i])
+        console.log(data.planets[i]["direction"])
         var index = getObjectIndexFromId(data.planets[i]["id"]);
         var physicalObject = objects[index][1];
         physicalObject.x(data.planets[i]["pos"][0])
         physicalObject.y(data.planets[i]["pos"][1])
-        physicalObject.setAttr('speed', data.planets[i]["vel"]);
-        physicalObject.setAttr('direction', data.planets[i]["direction"]);
+        let objData = physicalObject.getAttr('data')    
+        objData.speed = data.planets[i].vel; 
+        objData.direction = data.planets[i]["direction"];    
+        physicalObject.setAttr('data', objData); 
     }
     
 }

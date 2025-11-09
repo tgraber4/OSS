@@ -104,7 +104,7 @@ class Vector:
 
 class Planet:
     
-    def __init__(self, thingid=0, p = (0.0, 0.0), r = 14, m = 50000, v = (0.0, 0.0), s = False):
+    def __init__(self, thingid=0, p = (0.0, 0.0), r = 8, m = 50000, v = (0.0, 0.0), s = False):
         self.thingid = thingid
         self.pos = Vector(p[0], p[1])
         self.radius = r
