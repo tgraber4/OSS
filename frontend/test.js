@@ -1,37 +1,55 @@
-// 1. Create the stage
+// Helper: fill an existing circle with an image
+function fillCircleWithImage(circle, imgSrc) {
+  const img = new Image();
+  img.src = imgSrc;
+
+  img.onload = () => {
+    const radius = circle.radius();
+    const diameter = radius * 2;
+
+    // Scale image so it covers the circle fully (like background-size: cover)
+    const scale = Math.max(
+      diameter / img.width,
+      diameter / img.height
+    );
+
+    // Apply image as pattern fill
+    circle.fillPatternImage(img);
+    circle.fillPatternScale({ x: scale, y: scale });
+    circle.fillPatternRepeat('no-repeat');
+
+    // Center the image inside the circle
+    circle.fillPatternOffset({
+      x: img.width / 2,
+      y: img.height / 2,
+    });
+
+    // Optional stroke, etc.
+    circle.stroke('white');
+    circle.strokeWidth(2);
+
+    circle.getLayer().batchDraw(); // refresh the layer
+  };
+}
+
+// Create a stage and layer
 const stage = new Konva.Stage({
   container: 'container',
   width: window.innerWidth,
-  height: window.innerHeight
+  height: window.innerHeight,
 });
-
-// 2. Create a layer
 const layer = new Konva.Layer();
 stage.add(layer);
 
-// 3. Create a Konva.Image placeholder
-const konvaImage = new Konva.Image({
-  x: 50,
-  y: 50,
-  width: 200,
-  height: 200,
+// Make a circle
+const circle = new Konva.Circle({
+  x: 200,
+  y: 200,
+  radius: 100,
+  draggable: true,
 });
-//layer.add(konvaImage);
+layer.add(circle);
+layer.draw();
 
-// 4. Load the image
-const img = new Image();
-img.src = './imagesTESTING/mars.png'; // replace with your image path
-
-function setImage() {
-  konvaImage.image(img);
-  layer.draw();
-}
-
-if (img.complete) {
-  // Image is already loaded
-  setImage();
-} else {
-  // Wait for image to load
-  img.onload = setImage;
-}
-circle = new Konva.circle()
+// Fill the circle with an image
+fillCircleWithImage(circle, './imagesTESTING/mars.png');
