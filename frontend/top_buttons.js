@@ -93,6 +93,12 @@ function clickLayout4() {
     placedCircles.forEach(c => {
         c.destroy();
     });
+
+    createPlanet(0, 200, 400, 15, 90);
+    createPlanet(0, 600, 400, 15, -90);
+    createPlanet(0, 400, 200, 15, 180);
+    createPlanet(0, 400, 600, 15, 0);
+
     toggle_layout_menu()
 }
 
