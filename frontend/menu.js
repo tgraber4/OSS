@@ -1,14 +1,14 @@
 // --- Celestial data ---
 const celestialBodies = [
-  { name: 'Sun', color: '#ffcc00', mass: 1.989e30, planetRadius: 696340, speed: 0, direction: 0, acceleration: 0 },
-  { name: 'Mercury', color: '#bfbfbf', mass: 3.285e23, planetRadius: 2440, speed: 0, direction: 0, acceleration: 0 },
-  { name: 'Venus', image: './imagesTESTING/venus.png', color: '#e0b24c', mass: 4.867e24, planetRadius: 6052, speed: 0, direction: 0, acceleration: 0 },
-  { name: 'Earth', image: './imagesTESTING/ms_paint_earth.png', color: '#2a6bd4', mass: 5.972e24, planetRadius: 6371, speed: 0, direction: 0, acceleration: 0 },
-  { name: 'Mars', image: './imagesTESTING/mars.png', color: '#d14b28', mass: 6.39e23, planetRadius: 3389, speed: 0, direction: 0, acceleration: 0 },
-  { name: 'Jupiter', color: '#c48a3d', mass: 1.898e27, planetRadius: 69911, speed: 0, direction: 0, acceleration: 0 },
-  { name: 'Saturn', color: '#d9c073', mass: 5.683e26, planetRadius: 58232, speed: 0, direction: 0, acceleration: 0 },
-  { name: 'Uranus', color: '#7fc7ff', mass: 8.681e25, planetRadius: 25362, speed: 0, direction: 0, acceleration: 0 },
-  { name: 'Neptune', color: '#4062fa', mass: 1.024e26, planetRadius: 24622, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Sun', image: './images/sun.png', color: '#ffcc00', mass: 1.989e30, planetRadius: 696340, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Mercury', image: './images/cookie_mercury.png', color: '#bfbfbf', mass: 3.285e23, planetRadius: 2440, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Venus', image: './images/venus.png', color: '#e0b24c', mass: 4.867e24, planetRadius: 6052, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Earth', image: './images/ms_paint_earth.png', color: '#2a6bd4', mass: 5.972e24, planetRadius: 6371, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Mars', image: './images/mars.png', color: '#d14b28', mass: 6.39e23, planetRadius: 3389, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Jupiter', image: './images/jupiter.png', color: '#c48a3d', mass: 1.898e27, planetRadius: 69911, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Saturn', image: './images/saturn.png', color: '#d9c073', mass: 5.683e26, planetRadius: 58232, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Uranus', image: './images/uranus.png', color: '#7fc7ff', mass: 8.681e25, planetRadius: 25362, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Neptune', image: './images/neptune.png', color: '#4062fa', mass: 1.024e26, planetRadius: 24622, speed: 0, direction: 0, acceleration: 0 },
 ];
 
 
@@ -239,8 +239,8 @@ function makeDraggable(circle) {
 function showTooltip(circle) {
   const data = circle.getAttr('data') || {};
   const tooltip = new Konva.Group({
-    x: circle.x(),
-    y: circle.y() - circle.radius() - 175,
+    x: Math.min(circle.x() + 20, stage.width() - 200),
+    y: navbarHeight + 20,
     listening: true
   });
 
@@ -424,102 +424,57 @@ stage.on('click', ()=>{
 
 // --- Menu circles ---
 celestialBodies.forEach((body, i) => {
-  const circle = new Konva.Circle({
-    x: menuWidth / 2,
-    y: 60 + i * spacing,
-    radius,
-    fill: body.color,
-    stroke: '#555',
-    strokeWidth: 2,
-  });
+  const x = menuWidth / 2;
+  const y = 60 + i * spacing;
 
-  if (body.image) {
-    const img = new Image();
-    img.src = body.image;
-    img.onload = () => {
-      circle.fillPatternImage(img);
-      const scale = radius / Math.max(img.width, img.height); // scale to menu circle radius
-      circle.fillPatternScale({ x: scale, y: scale });
-      circle.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
-      circle.fillPatternRepeat('no-repeat');
-      backgroundLayer.draw();
-    };
-  }
+  // Create menu circle
+  const circle = createCircle(x, y, radius, body, false, false, backgroundLayer);
 
   const label = new Konva.Text({
-    x: circle.x(),
-    y: circle.y() - radius - 20,
+    x,
+    y: y - radius - 20,
     text: body.name,
     fontSize: 14,
     fill: 'white',
     align: 'center',
   });
-  label.offsetX(label.width() / 2)
+  label.offsetX(label.width() / 2);
 
-  // store the planet data
-  circle.setAttr('data', body);
-
+  // Hover highlight (lighter color only if no image)
   circle.on('mouseenter', () => {
-    circle.fill(lightenHex(body.color));
+    circle.stroke('#0ff');
     backgroundLayer.draw();
   });
 
   circle.on('mouseleave', () => {
-    circle.fill(body.color);
+    circle.stroke('#555');
     backgroundLayer.draw();
   });
-circle.on('mousedown', () => {
-  const pos = stage.getPointerPosition();
 
-  const sunRadius = celestialBodies[0].planetRadius;
-  const baseVisualRadius = 50;
-  const exponent = 0.3;
+  // When user drags from menu
+  circle.on('mousedown', () => {
+    const pos = stage.getPointerPosition();
 
-  let scaledRadius = body.name === 'Sun'
-    ? baseVisualRadius
-    : Math.max(5, Math.pow(body.planetRadius / sunRadius, exponent) * baseVisualRadius);
+    const sunRadius = celestialBodies[0].planetRadius;
+    const baseVisualRadius = 50;
+    const exponent = 0.3;
 
-  const clone = new Konva.Circle({
-    x: pos.x,
-    y: pos.y,
-    radius: scaledRadius,
-    stroke: '#555',
-    strokeWidth: 2,
-    fill: body.color, // fallback fill
-    draggable: true,
-  });
+    const scaledRadius = body.name === 'Sun'
+      ? baseVisualRadius
+      : Math.max(5, Math.pow(body.planetRadius / sunRadius, exponent) * baseVisualRadius);
 
-  clone.setAttr('data', { ...body });
-  clone.setAttr('fromMenu', true);
-  backgroundLayer.add(clone);
-
-  // Only start drag AFTER image is loaded (if any)
-  if (body.image) {
-    const img = new Image();
-    img.src = body.image;
-    img.onload = () => {
-      clone.fillPatternImage(img);
-      const scale = scaledRadius / Math.max(img.width, img.height);
-      clone.fillPatternScale({ x: scale, y: scale });
-      clone.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
-      clone.fillPatternRepeat('no-repeat');
-      backgroundLayer.draw();
-
-      makeDraggable(clone);
-      clone.startDrag();
-      placedCircles.push(clone);
-    };
-  } else {
+    // Create new planet clone using your helper
+    const clone = createCircle(pos.x, pos.y, scaledRadius, body, true, true, backgroundLayer);
+    backgroundLayer.add(clone);
     makeDraggable(clone);
     clone.startDrag();
+
     placedCircles.push(clone);
-  }
-});
-
-
+  });
 
   menuContentGroup.add(circle, label);
 });
+
 
 
 // --- Scroll menu content with wheel (smooth) ---
@@ -579,36 +534,89 @@ function resolveCollision(circle) {
 }
 
 
-// Helper function to create a Konva circle with optional image
-function createCircle(x, y, radius, body, draggable = false, fromMenu = false) {
+function createCircle(x, y, radius, body, draggable = false, fromMenu = false, layer = backgroundLayer) {
   const circle = new Konva.Circle({
     x,
     y,
     radius,
     stroke: '#555',
     strokeWidth: 2,
-    fill: body.color, // fallback
     draggable,
   });
 
-  // store the planet data
   circle.setAttr('data', { ...body });
   circle.setAttr('fromMenu', fromMenu);
 
   if (body.image) {
     const img = new Image();
     img.src = body.image;
+
     img.onload = () => {
+      // Scale the image so it completely covers the circle
+      const scale = (2 * radius) / Math.max(img.width, img.height);
+
       circle.fillPatternImage(img);
-      const scale = radius / Math.max(img.width, img.height);
-      circle.fillPatternScale({ x: scale, y: scale });
-      circle.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
       circle.fillPatternRepeat('no-repeat');
-      backgroundLayer.draw();
+      circle.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
+      circle.fillPatternScale({ x: scale, y: scale });
+
+      // Optional: remove fill fallback if desired
+      // circle.fill(null);
+
+      layer.batchDraw();
     };
   }
 
   return circle;
+}
+
+
+
+
+function createCircleGroup(x, y, radius, body, draggable = false, fromMenu = false, layer = backgroundLayer) {
+  const group = new Konva.Group({ x, y, draggable });
+
+  // Base circle (for stroke and fallback color)
+  const circle = new Konva.Circle({
+    radius,
+    stroke: '#555',
+    strokeWidth: 2,
+    fill: body.image ? null : body.color,
+  });
+  group.add(circle);
+
+  group.setAttr('data', { ...body });
+  group.setAttr('fromMenu', fromMenu);
+
+  // Add image if present
+  if (body.image) {
+    const img = new Image();
+    img.src = body.image;
+
+    img.onload = () => {
+      const imageNode = new Konva.Image({
+        image: img,
+        width: radius * 2,
+        height: radius * 2,
+        offsetX: radius,
+        offsetY: radius,
+        listening: false, // don't block events
+      });
+
+      // Use the circle as a clip to mask the image
+      imageNode.cache();
+      imageNode.clipFunc((ctx) => {
+        ctx.beginPath();
+        ctx.arc(radius, radius, radius, 0, Math.PI * 2);
+        ctx.closePath();
+      });
+
+      group.add(imageNode);
+      layer.batchDraw();
+    };
+  }
+
+  return group;
 }
 
 
