@@ -308,8 +308,14 @@ function showTooltip(circle) {
               t.text(`${field.label}: ${val}${field.suffix || ''}`);
               backgroundLayer.draw();
             }
-            if(field.key === 'speed') val = Math.max(0, Math.min(500, val));
-            if(field.key === 'direction') val = ((val % 360) + 360) % 360;
+            if(field.key === 'speed') {
+              val = Math.max(0, Math.min(500, val)) 
+              data[field.key] = val;
+            }
+            if(field.key === 'direction') {
+              val = ((val % 360) + 360) % 360;
+              data[field.key] = val;
+            }
 
             data[field.key] = val;
             t.text(`${field.label}: ${val}${field.suffix || ''}`);
@@ -404,6 +410,19 @@ celestialBodies.forEach((body, i) => {
     stroke: '#555',
     strokeWidth: 2,
   });
+
+  if (body.image) {
+    const img = new Image();
+    img.src = body.image;
+    img.onload = () => {
+      circle.fillPatternImage(img);
+      const scale = radius / Math.max(img.width, img.height); // scale to menu circle radius
+      circle.fillPatternScale({ x: scale, y: scale });
+      circle.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
+      circle.fillPatternRepeat('no-repeat');
+      backgroundLayer.draw();
+    };
+  }
 
   const label = new Konva.Text({
     x: circle.x(),
@@ -535,6 +554,39 @@ function resolveCollision(circle) {
       }
     }
   }
+}
+
+
+// Helper function to create a Konva circle with optional image
+function createCircle(x, y, radius, body, draggable = false, fromMenu = false) {
+  const circle = new Konva.Circle({
+    x,
+    y,
+    radius,
+    stroke: '#555',
+    strokeWidth: 2,
+    fill: body.color, // fallback
+    draggable,
+  });
+
+  // store the planet data
+  circle.setAttr('data', { ...body });
+  circle.setAttr('fromMenu', fromMenu);
+
+  if (body.image) {
+    const img = new Image();
+    img.src = body.image;
+    img.onload = () => {
+      circle.fillPatternImage(img);
+      const scale = radius / Math.max(img.width, img.height);
+      circle.fillPatternScale({ x: scale, y: scale });
+      circle.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
+      circle.fillPatternRepeat('no-repeat');
+      backgroundLayer.draw();
+    };
+  }
+
+  return circle;
 }
 
 
