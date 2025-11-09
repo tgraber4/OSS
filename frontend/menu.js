@@ -13,6 +13,169 @@ const celestialBodies = [
 
 
 
+// --- backend Requests ---
+
+const backendUrl = "http://127.0.0.1:5000";
+
+let updateInterval = null;
+var objects = [];
+var playDataObjects = [];
+var objectsCurIndex = 0;
+
+var getObjectIndexFromId = function (id) {
+    for (var i=0; i < objects.length; i++) {
+        if (objects[i][0] == id) {
+            return i;
+        }
+    }
+}
+
+var addObject = function (customObject) {
+    customObject.setAttr('objIndex', objectsCurIndex);
+    objects.push([objectsCurIndex, customObject]);
+    objectsCurIndex++;
+    getParams();
+    
+}
+
+var deleteObject = function (customObject) {
+    objects.splice(getObjectIndexFromId(customObject.getAttr('objIndex')), 1);
+    customObject.destroy();
+}
+
+class playDataObject {
+    constructor(id, mass, velocity, posx, posy) {
+        this.id = id;
+        this.mass = mass;
+        this.speed = velocity;
+        this.posx = posx;
+        this.posy = posy;
+    }
+}
+
+
+var getParams = function () {
+    playDataObjects = []
+    for (var i = 0; i < objects.length; i++) {
+        var id = objects[i][1].getAttr('objIndex');
+        var mass = objects[i][1].getAttr('data').mass
+        var velocity = objects[i][1].getAttr('data').speed;
+        var posx = objects[i][1].x();
+        var posy = objects[i][1].y();
+        playDataObjects.push(new playDataObject(id, mass, velocity, posx, posy))
+    }
+    console.log(playDataObjects);
+}
+
+var updatePositions = function (positionArray) {
+    for (var i = 0; i < positionArray.length; i++) {
+        var index = getObjectIndexFromId(positionArray[i][0]);
+        var physicalObject = objects[index][1];
+        physicalObject.x(positionArray[i][1])
+        physicalObject.y(positionArray[i][2])
+    }
+}
+
+// Send initial planet data to backend to start simulation
+function sendPlayRequestToBackend() {
+    getParams();
+    
+    // Convert playDataObjects to the format your backend expects
+    const planetsData = playDataObjects.map(obj => ({
+        id: obj.id,
+        pos: [obj.posx, obj.posy],
+        mass: obj.mass,
+        vel_mag: obj.velocity,
+        vel_deg: 0  // You might want to add a velocity direction field to your UI
+    }));
+    
+    fetch("http://127.0.0.1:5000/start_simulation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planets: planetsData })
+    })
+    .then(res => res.json())
+    .then(data => console.log("Simulation started:", data))
+    .catch(error => console.error("Error starting simulation:", error));
+}
+
+// Get a single snapshot of positions from backend
+function getRequestFromBackend() {
+    fetch("http://127.0.0.1:5000/update_positions")
+    .then(res => res.json())
+    .then(data => {
+        console.log("test");
+        if (data.planets) {
+            const positionArray = data.planets.map((planet) => {
+                return [planet.id, planet.pos[0], planet.pos[1]];
+            });
+            updatePositions(positionArray);
+            backgroundLayer.draw();
+        }
+    })
+    .catch(error => console.error("Error fetching positions:", error));
+}
+
+function sendPauseToBackend() {
+  fetch("http://127.0.0.1:5000/pause_simulation", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planets: planetsData })
+    })
+    .then(res => res.json())
+    .then(data => console.log("Simulation started:", data))
+    .catch(error => console.error("Error starting simulation:", error));
+}
+
+
+function clickPlay() {
+    if (!playButton.clicked) {
+        playButton.Text.setAttr('text', 'Pause');
+        playButton.clicked = true;
+
+        sendPlayRequestToBackend();
+        
+        // Start the update loop
+        updateInterval = setInterval(() => {
+            getRequestFromBackend()
+        }, 17); // ~60 FPS
+
+    } else {
+        playButton.Text.setAttr('text', 'Play');
+        playButton.clicked = false;
+
+        // Stop the update loop
+        if (updateInterval) {
+            clearInterval(updateInterval);
+            updateInterval = null;
+        }
+
+        fetch(`${backendUrl}/pause_simulation`, {
+            method: "POST"
+        })
+        .then(res => res.json())
+        .then(data => console.log("Simulation paused:", data))
+        .catch(error => console.error("Error pausing simulation:", error));
+    }
+}
+
+
+
+function update_arrow(circle)
+{
+  const data = circle.getAttr('data') || {};
+  const arrow = circle.getAttr('arrow') || {};
+
+  arrow.setAttr('x', circle.x());
+  arrow.setAttr('y', circle.y());
+
+  arrow.setAttr('points', [0, 0, 2*data.speed*Math.cos(data.direction*3.14159/180), -2*data.speed*Math.sin(data.direction*3.14159/180)]);
+  arrow.setAttr('pointerLength', Math.min(data.speed*0.25, 10));
+  arrow.setAttr('pointerWidth', Math.min(data.speed*0.25, 10));
+}
+
+
+
 function lightenHex(hex, amount = 0x11) {
     // Convert hex string to number
     let num = parseInt(hex.slice(1), 16);
@@ -71,22 +234,9 @@ function makeButton(x, y, w, h, text, layer, clickFn, fill_value = '#555') {
 
 // --- Navbar & buttons ---
 
-function clickPlay() {
-    if (!playButton.clicked)
-    {
-        playButton.Text.setAttr('text', 'Pause');
-        playButton.clicked = true;
-    }
-    else
-    {
-        playButton.Text.setAttr('text', 'Play');
-        playButton.clicked = false;
-    }
-}
-
 uiLayer.add(new Konva.Rect({x:0, y:0, width:stage.width(), height:navbarHeight, fill:'#333'}));
 const menuButton = makeButton(0,0,menuWidth,navbarHeight,'Object Menu', uiLayer),
-      playButton = makeButton(stage.width()-100,0,100,50,'Play', uiLayer);
+      playButton = makeButton(stage.width()-100,0,100,50,'Play', uiLayer, clickPlay);
 
 playButton.clicked = false;
 
@@ -159,12 +309,17 @@ function makeDraggable(circle) {
     } else {
       deleteZone.opacity(0.6);
       deleteZone.shadowBlur(0);
+
+      update_arrow(circle);
     }
 
     backgroundLayer.batchDraw();
   });
 
   circle.on('dragend', () => {
+
+  update_arrow(circle);
+
   const maxIterations = 10; // prevent infinite loop
   let iteration = 0;
   let collided = true;
@@ -202,11 +357,13 @@ function makeDraggable(circle) {
 
   // Delete zone logic
   if (inDeleteZone(circle)) {
-    circle.destroy();
+    deleteObject(circle);
+    deleteObject(circle.getAttr('arrow'));
     const idx = placedCircles.indexOf(circle);
     if (idx !== -1) placedCircles.splice(idx, 1);
   } else {
     circle.moveToBottom();
+    addObject(circle);
   }
 
   deleteZone.hide();
@@ -238,18 +395,36 @@ function makeDraggable(circle) {
 // --- Tooltip ---
 function showTooltip(circle) {
   const data = circle.getAttr('data') || {};
-  const tooltip = new Konva.Group({
-    x: Math.min(circle.x() + 20, stage.width() - 200),
-    y: navbarHeight + 20,
-    listening: true
-  });
+  const tooltipWidth = 160;  // width of tooltip box
+const tooltipHeight = 180; // height of tooltip box
+const spacing = 10;
 
-  const boxWidth = 160, boxHeight = 200;
+// horizontal: center above the circle
+let tooltipX = circle.x() - tooltipWidth / 2;
+
+// vertical: just above the circle, but not above navbar
+let tooltipY = circle.y() - circle.radius() - tooltipHeight - spacing; // 10px spacing
+
+if (tooltipY < navbarHeight + spacing) {
+  tooltipY = circle.y() + circle.radius() + spacing;
+}
+
+tooltipX = Math.max(0, Math.min(stage.width() - tooltipWidth, tooltipX));
+
+const tooltip = new Konva.Group({
+  x: tooltipX,
+  y: tooltipY,
+  listening: true
+});
+
+    const boxWidth = tooltipWidth;
+    const boxHeight = tooltipHeight;
+  
   const box = new Konva.Rect({
-    x: -60,
-    y: -30,
-    width: boxWidth,
-    height: boxHeight,
+    x: 0,
+    y: 0,
+    width: tooltipWidth,
+    height: tooltipHeight,
     fill: 'black',
     opacity: 0.9,
     cornerRadius: 6,
@@ -333,10 +508,12 @@ function showTooltip(circle) {
             if(field.key === 'speed') {
               val = Math.max(0, Math.min(500, val)) 
               data[field.key] = val;
+              update_arrow(circle);
             }
             if(field.key === 'direction') {
               val = ((val % 360) + 360) % 360;
               data[field.key] = val;
+              update_arrow(circle);
             }
 
             data[field.key] = val;
@@ -348,7 +525,10 @@ function showTooltip(circle) {
 
         input.addEventListener('blur', commit);
         input.addEventListener('keydown', (evt) => {
-          if (evt.key === 'Enter') input.blur();
+          if (evt.key === 'Enter')
+            {
+              input.blur();
+            }
         });
       });
     }
@@ -401,8 +581,10 @@ function showTooltip(circle) {
         tooltip.destroy();
         circle._tooltip = null;
         circle.destroy();
+        circle.getAttr('arrow').destroy();
         const idx = placedCircles.indexOf(circle);
         if (idx !== -1) placedCircles.splice(idx, 1);
+        deleteObject(circle);
         backgroundLayer.draw();
       }
     });
@@ -534,7 +716,7 @@ function resolveCollision(circle) {
 }
 
 
-function createCircle(x, y, radius, body, draggable = false, fromMenu = false, layer = backgroundLayer) {
+function createCircle(x, y, radius, body, draggable = false, fromMenu = false, layer = backgroundLayer, vel_mag = 0, vel_dir = 0) {
   const circle = new Konva.Circle({
     x,
     y,
@@ -544,8 +726,24 @@ function createCircle(x, y, radius, body, draggable = false, fromMenu = false, l
     draggable,
   });
 
+  body.speed = vel_mag;
+  body.direction = vel_dir;
   circle.setAttr('data', { ...body });
   circle.setAttr('fromMenu', fromMenu);
+
+  const arrow = new Konva.Arrow({
+    x: circle.x(),
+    y: circle.y(),
+    points: [0, 0, 2*vel_mag*Math.cos(vel_dir*3.14159/180), -2*vel_mag*Math.sin(vel_dir*3.14159/180)],
+    pointerLength: Math.min(vel_mag*0.25, 10),
+    pointerWidth: Math.min(vel_mag*0.25, 10),
+    fill: 'white',
+    stroke: 'white',
+    strokeWidth: 4
+  });
+
+  layer.add(arrow);
+  circle.setAttr("arrow", arrow);
 
   if (body.image) {
     const img = new Image();
@@ -573,7 +771,7 @@ function createCircle(x, y, radius, body, draggable = false, fromMenu = false, l
 
 
 
-function createCircleGroup(x, y, radius, body, draggable = false, fromMenu = false, layer = backgroundLayer) {
+function createCircleGroup(x, y, radius, body, draggable = false, fromMenu = false, layer = backgroundLayer, vel_mag = 0, vel_dir = 0) {
   const group = new Konva.Group({ x, y, draggable });
 
   // Base circle (for stroke and fallback color)

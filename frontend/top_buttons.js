@@ -1,16 +1,29 @@
 
 
+
+
+// function clickDelete() {
+//     fetch("http://127.0.0.1:5000/clear_simulation", {
+//         method: "POST"
+//     });
+//     placedCircles.forEach(c => {
+//         c.destroy();
+//     });
+// }
+
+
+
+
 function clickReset() {
 
 }
 
 function clickDelete() {
     placedCircles.forEach(c => {
+        deleteObject(c.getAttr('arrow'));
+        deleteObject(c);
         c.destroy();
     });
-    placedCircles.length = 0;
-
-    backgroundLayer.draw();
 }
 
 
@@ -19,7 +32,6 @@ function toggle_layout_menu()
     layout_menu_visible = !layout_menu_visible;
     layout_menu_visible ? layoutMenuTween.play() : layoutMenuTween.reverse(); 
 }
-
 
 function createPlanet(planet_id, x, y, v_mag, v_deg)
 {
@@ -31,15 +43,15 @@ function createPlanet(planet_id, x, y, v_mag, v_deg)
       ? baseVisualRadius
       : Math.max(5, Math.pow(celestialBodies[planet_id].planetRadius / sunRadius, exponent) * baseVisualRadius);
     
-    const clone = createCircle(x, y, scaledRadius, celestialBodies[planet_id], true, false, backgroundLayer);
+    const clone = createCircle(x, y, scaledRadius, celestialBodies[planet_id], true, false, backgroundLayer, v_mag, v_deg);
     
     backgroundLayer.add(clone);
     backgroundLayer.draw();
     placedCircles.push(clone);
     makeDraggable(clone);
+    addObject(clone)
     return clone;
 }
-
 
 function clickLayout1() {
     clickDelete();
@@ -64,15 +76,24 @@ function clickLayout2() {
 }
 
 function clickLayout3() {
-    clickDelete();
+    placedCircles.forEach(c => {
+        c.destroy();
+    });
 
-    toggle_layout_menu();
+    createPlanet(0, 250, 400, 15, 90);
+    createPlanet(0, 550, 400, 15, -90);
+
+    createPlanet(5, 450, 400, 5.385, 68.1986);
+    createPlanet(5, 350, 400, 5, 126.87);
+
+    toggle_layout_menu()
 }
 
 function clickLayout4() {
-    clickDelete();
-    
-    toggle_layout_menu();
+    placedCircles.forEach(c => {
+        c.destroy();
+    });
+    toggle_layout_menu()
 }
 
 
