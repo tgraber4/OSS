@@ -21,6 +21,11 @@ let updateInterval = null;
 var objects = [];
 var playDataObjects = [];
 var objectsCurIndex = 0;
+var playcounter = 0;
+
+var resetCopy = [];
+
+var menuAccessable = true;
 
 var getObjectIndexFromId = function (id) {
     for (var i=0; i < objects.length; i++) {
@@ -34,8 +39,6 @@ var addObject = function (customObject) {
     customObject.setAttr('objIndex', objectsCurIndex);
     objects.push([objectsCurIndex, customObject]);
     objectsCurIndex++;
-    getParams();
-    
 }
 
 var deleteObject = function (customObject) {
@@ -128,7 +131,6 @@ function sendPauseToBackend() {
 }
 
 function updateObjectsUponPause (data) {
-    console.log("Simulation paused:", data.planets.length)
     for (var i =0; i < data.planets.length; i++) {
         console.log(data.planets[i]["direction"])
         var index = getObjectIndexFromId(data.planets[i]["id"]);
@@ -139,6 +141,9 @@ function updateObjectsUponPause (data) {
         objData.speed = data.planets[i].vel; 
         objData.direction = data.planets[i]["direction"];    
         physicalObject.setAttr('data', objData); 
+
+        physicalObject.getAttr('arrow').show();
+        update_arrow(physicalObject);
     }
     
 }
@@ -150,6 +155,20 @@ function clickPlay() {
 
         sendPlayRequestToBackend();
 
+        for (var i = 0; i < objects.length; i++) {
+          makeNotDraggable(objects[i][1]);
+        }
+
+        if (playcounter == 0) {
+          // reset copy
+        }
+
+        menuAccessable = false;
+        if (menuVisible) { 
+          menuTween.reverse();
+          menuVisible = false;
+        }
+
         placedCircles.forEach(c =>
         {
           c.getAttr('arrow').hide();
@@ -160,15 +179,16 @@ function clickPlay() {
             getRequestFromBackend()
         }, 17); // ~60 FPS
 
+        playcounter++;
     } else {
         playButton.Text.setAttr('text', 'Play');
         playButton.clicked = false;
 
-        placedCircles.forEach(c =>
-        {
-          update_arrow(c);
-          c.getAttr('arrow').show();
-        });
+        for (var i = 0; i < objects.length; i++) {
+          makeDraggable(objects[i][1]);
+        }
+
+        menuAccessable = true;
 
         // Stop the update loop
         if (updateInterval) {
@@ -245,10 +265,18 @@ function makeButton(x, y, w, h, text, layer, clickFn, fill_value = '#555') {
   const txt = new Konva.Text({x: x + w/2, y: y + h/2, text, fontSize: 16, fill: 'white', listening: false});
   txt.offsetX(txt.width()/2); txt.offsetY(txt.height()/2);
   layer.add(btn, txt);
-  btn.on('mouseenter', ()=>{ btn.fill('#777'); layer.draw(); });
+  btn.on('mouseenter', ()=>{ 
+    if ((text != "Object Menu" && text != "") || (text == "Object Menu" && menuAccessable)) {
+      btn.fill('#777'); layer.draw(); 
+    } 
+  });
   btn.on('mouseleave', ()=>{ btn.fill(fill_value); layer.draw(); });
   
-  btn.on('mouseover', function (e) { e.target.getStage().container().style.cursor = 'pointer'; });
+  btn.on('mouseover', function (e) { 
+    if ((text != "Object Menu" && text != "") || (text == "Object Menu" && menuAccessable)) {
+      e.target.getStage().container().style.cursor = 'pointer'; 
+    }
+  });
   btn.on('mouseout', function (e) { e.target.getStage().container().style.cursor = 'default'; });
 
   btn.Text = txt;
@@ -299,6 +327,17 @@ function inDeleteZone(circle) {
   const c = circle.getClientRect();
   return c.x+c.width/2>dz.x && c.x+c.width/2<dz.x+dz.width &&
          c.y+c.height/2>dz.y && c.y+c.height/2<dz.y+dz.height;
+}
+
+function makeNotDraggable(circle) {
+  // Disable draggability
+  circle.draggable(false);
+
+  // Remove specific event handlers
+  circle.off('dragstart');
+  circle.off('dragmove');
+  circle.off('dragend');
+  circle.off('click');
 }
 
 // --- Make circle draggable with collision prevention ---
@@ -383,12 +422,14 @@ function makeDraggable(circle) {
   // Delete zone logic
   if (inDeleteZone(circle)) {
     deleteObject(circle);
-    deleteObject(circle.getAttr('arrow'));
+    circle.getAttr('arrow').destroy();
     const idx = placedCircles.indexOf(circle);
     if (idx !== -1) placedCircles.splice(idx, 1);
   } else {
     circle.moveToBottom();
-    addObject(circle);
+    if (circle.getAttr('fromMenu')) {
+      addObject(circle);
+    }
   }
 
   deleteZone.hide();
@@ -611,7 +652,6 @@ const tooltip = new Konva.Group({
       onFinish: () => {
         tooltip.destroy();
         circle._tooltip = null;
-        circle.destroy();
         circle.getAttr('arrow').destroy();
         const idx = placedCircles.indexOf(circle);
         if (idx !== -1) placedCircles.splice(idx, 1);
@@ -857,7 +897,11 @@ function createCircleGroup(x, y, radius, body, draggable = false, fromMenu = fal
 // --- Menu tween ---
 let menuVisible=false;
 const menuTween = new Konva.Tween({ node: menuGroup, duration:0.4, y:navbarHeight, easing: Konva.Easings.EaseInOut });
-menuButton.on('click', ()=>{ menuVisible = !menuVisible; menuVisible?menuTween.play():menuTween.reverse(); });
+menuButton.on('click', ()=>{ 
+  if (menuAccessable) {
+    menuVisible = !menuVisible; menuVisible?menuTween.play():menuTween.reverse(); 
+  }
+});
 
 
 const navTitleText = new Konva.Text({

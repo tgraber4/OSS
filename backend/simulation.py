@@ -53,6 +53,11 @@ class SimulationManager:
 
     def _get_planet_data_2(self):
         """Helper to return all planet info in JSON-friendly format."""
+        # for p in self.planets:
+        #     print("x: " + str(p.pos.x))
+        #     print("y: " + str(p.pos.y))
+        #     print("vx: " + str(p.vel.x))
+        #     print("vy: " + str(p.vel.y))
         return [
             {"id": p.thingid, "pos": [p.pos.x, p.pos.y]}
             for p in self.planets
@@ -104,7 +109,7 @@ class Vector:
 
 class Planet:
     
-    def __init__(self, thingid=0, p = (0.0, 0.0), r = 8, m = 50000, v = (0.0, 0.0), s = False):
+    def __init__(self, thingid=0, p = (0.0, 0.0), r = 14, m = 50000, v = (0.0, 0.0), s = False):
         self.thingid = thingid
         self.pos = Vector(p[0], p[1])
         self.radius = r

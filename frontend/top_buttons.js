@@ -2,27 +2,29 @@
 
 
 
-// function clickDelete() {
-//     fetch("http://127.0.0.1:5000/clear_simulation", {
-//         method: "POST"
-//     });
-//     placedCircles.forEach(c => {
-//         c.destroy();
-//     });
-// }
+
 
 
 
 
 function clickReset() {
-
+    console.log(resetCopy)
+    clickDelete();
+    playcounter = 0;
+    objects = [];
+    for (var i = 0; i < resetCopy.length; i++) {
+        addObject(resetCopy[i]);
+        backgroundLayer.add(resetCopy[i])
+        console.log(resetCopy[i])
+    }
+    console.log(objects);
+    backgroundLayer.draw();
 }
 
 function clickDelete() {
     placedCircles.forEach(c => {
-        deleteObject(c.getAttr('arrow'));
+        c.getAttr('arrow').destroy();
         deleteObject(c);
-        c.destroy();
     });
 }
 
@@ -78,9 +80,7 @@ function clickLayout2() {
 }
 
 function clickLayout3() {
-    placedCircles.forEach(c => {
-        c.destroy();
-    });
+    clickDelete();
 
     createPlanet(0, 250, 400, 15, 90);
     createPlanet(0, 550, 400, 15, -90);
@@ -92,9 +92,7 @@ function clickLayout3() {
 }
 
 function clickLayout4() {
-    placedCircles.forEach(c => {
-        c.destroy();
-    });
+    clickDelete();
 
     createPlanet(0, 200, 400, 15, -90);
     createPlanet(0, 600, 400, 15, 90);
@@ -105,7 +103,7 @@ function clickLayout4() {
 }
 
 
-const resetButton = makeButton(stage.width()-200, 0, 100, navbarHeight,'Reset', uiLayer, clickReset);
+const resetButton = makeButton(stage.width()-200, 0, 100, navbarHeight,'', uiLayer, clickReset);
 const clearButton = makeButton(stage.width()-300, 0, 100, navbarHeight,'Clear', uiLayer, clickDelete);
 const layoutButton = makeButton(stage.width()-500, 0, 200, navbarHeight,'Layout', uiLayer);
 
@@ -122,19 +120,19 @@ const layout_group = new Konva.Group({
 backgroundLayer.add(layout_group);
 layout_group.add(new Konva.Rect({x:stage.width()-500, y:0, width:menuWidth, height:2*layoutClipHeight, fill:'blue'}));
 
-const layout_button1 = makeButton(stage.width()-500, 0, 200, navbarHeight,'test 1', backgroundLayer, clickLayout1, fill = '#722')
+const layout_button1 = makeButton(stage.width()-500, 0, 200, navbarHeight,'Inner Solar System', backgroundLayer, clickLayout1, fill = '#722')
 layout_group.add(layout_button1);
 layout_group.add(layout_button1.Text);
 
-const layout_button2 = makeButton(stage.width()-500, 50, 200, navbarHeight,'test 2', backgroundLayer, clickLayout2, fill = '#722')
+const layout_button2 = makeButton(stage.width()-500, 50, 200, navbarHeight,'Tzu Sun', backgroundLayer, clickLayout2, fill = '#722')
 layout_group.add(layout_button2);
 layout_group.add(layout_button2.Text);
 
-const layout_button3 = makeButton(stage.width()-500, 100, 200, navbarHeight,'test 3', backgroundLayer, clickLayout3, fill = '#722')
+const layout_button3 = makeButton(stage.width()-500, 100, 200, navbarHeight,'Slingshot', backgroundLayer, clickLayout3, fill = '#722')
 layout_group.add(layout_button3);
 layout_group.add(layout_button3.Text);
 
-const layout_button4 = makeButton(stage.width()-500, 150, 200, navbarHeight,'test 4', backgroundLayer, clickLayout4, fill = '#722')
+const layout_button4 = makeButton(stage.width()-500, 150, 200, navbarHeight,'Cardinals', backgroundLayer, clickLayout4, fill = '#722')
 layout_group.add(layout_button4);
 layout_group.add(layout_button4.Text);
 
