@@ -52,21 +52,43 @@ const navbarHeight = 50,
 const placedCircles = [];
 
 // --- Helper: create button ---
-function makeButton(x, y, w, h, text, layer, clickFn) {
-  const btn = new Konva.Rect({x, y, width: w, height: h, fill: '#555', cornerRadius: 0, listening: true});
+function makeButton(x, y, w, h, text, layer, clickFn, fill_value = '#555') {
+  const btn = new Konva.Rect({x, y, width: w, height: h, fill: fill_value, cornerRadius: 0, listening: true});
   const txt = new Konva.Text({x: x + w/2, y: y + h/2, text, fontSize: 16, fill: 'white', listening: false});
   txt.offsetX(txt.width()/2); txt.offsetY(txt.height()/2);
   layer.add(btn, txt);
   btn.on('mouseenter', ()=>{ btn.fill('#777'); layer.draw(); });
-  btn.on('mouseleave', ()=>{ btn.fill('#555'); layer.draw(); });
+  btn.on('mouseleave', ()=>{ btn.fill(fill_value); layer.draw(); });
+  
+  btn.on('mouseover', function (e) { e.target.getStage().container().style.cursor = 'pointer'; });
+  btn.on('mouseout', function (e) { e.target.getStage().container().style.cursor = 'default'; });
+
+  btn.Text = txt;
+  
   if(clickFn) btn.on('click', clickFn);
   return btn;
 }
 
 // --- Navbar & buttons ---
+
+function clickPlay() {
+    if (!playButton.clicked)
+    {
+        playButton.Text.setAttr('text', 'Pause');
+        playButton.clicked = true;
+    }
+    else
+    {
+        playButton.Text.setAttr('text', 'Play');
+        playButton.clicked = false;
+    }
+}
+
 uiLayer.add(new Konva.Rect({x:0, y:0, width:stage.width(), height:navbarHeight, fill:'#333'}));
 const menuButton = makeButton(0,0,menuWidth,navbarHeight,'Object Menu', uiLayer),
       playButton = makeButton(stage.width()-100,0,100,50,'Play', uiLayer);
+
+playButton.clicked = false;
 
 // --- Menu group with clipping ---
 const menuClipHeight = stage.height() - navbarHeight;
