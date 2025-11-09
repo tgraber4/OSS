@@ -8,6 +8,9 @@ function clickDelete() {
     placedCircles.forEach(c => {
         c.destroy();
     });
+    placedCircles.length = 0;
+
+    backgroundLayer.draw();
 }
 
 
@@ -18,32 +21,58 @@ function toggle_layout_menu()
 }
 
 
+function createPlanet(planet_id, x, y, v_mag, v_deg)
+{
+    const sunRadius = celestialBodies[0].planetRadius;
+    const baseVisualRadius = 50;
+    const exponent = 0.3;
+
+    const scaledRadius = celestialBodies[planet_id].name === 'Sun'
+      ? baseVisualRadius
+      : Math.max(5, Math.pow(celestialBodies[planet_id].planetRadius / sunRadius, exponent) * baseVisualRadius);
+    
+    const clone = createCircle(x, y, scaledRadius, celestialBodies[planet_id], true, false, backgroundLayer);
+    
+    backgroundLayer.add(clone);
+    backgroundLayer.draw();
+    placedCircles.push(clone);
+    makeDraggable(clone);
+    return clone;
+}
+
+
 function clickLayout1() {
-    placedCircles.forEach(c => {
-        c.destroy();
-    });
-    toggle_layout_menu()
+    clickDelete();
+
+    createPlanet(0, 500, 400, 0, 0);
+    createPlanet(1, 500-57.91, 400, 47.87, -90);
+    createPlanet(2, 500-108.21, 400, 35.02, -90);
+    createPlanet(3, 500-149.6, 400, 29.785, -90);
+    createPlanet(4, 500-230, 400, 24.013, -90);
+
+
+    toggle_layout_menu();
 }
 
 function clickLayout2() {
-    placedCircles.forEach(c => {
-        c.destroy();
-    });
-    toggle_layout_menu()
+    clickDelete();
+
+    createPlanet(0, 250, 400, 15, 90);
+    createPlanet(0, 550, 400, 15, -90);
+
+    toggle_layout_menu();
 }
 
 function clickLayout3() {
-    placedCircles.forEach(c => {
-        c.destroy();
-    });
-    toggle_layout_menu()
+    clickDelete();
+
+    toggle_layout_menu();
 }
 
 function clickLayout4() {
-    placedCircles.forEach(c => {
-        c.destroy();
-    });
-    toggle_layout_menu()
+    clickDelete();
+    
+    toggle_layout_menu();
 }
 
 

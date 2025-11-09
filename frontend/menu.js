@@ -13,25 +13,6 @@ const celestialBodies = [
 
 
 
-function lightenHex(hex, amount = 0x11) {
-    // Convert hex string to number
-    let num = parseInt(hex.slice(1), 16);
-
-    // Extract channels
-    let r = (num >> 16) & 0xff;
-    let g = (num >> 8) & 0xff;
-    let b = num & 0xff;
-
-    // Add amount, clamp to 255
-    r = Math.min(255, r + amount);
-    g = Math.min(255, g + amount);
-    b = Math.min(255, b + amount);
-
-    // Convert back to hex string
-    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-}
-
-
 const stage = new Konva.Stage({
   container: 'container',
   width: window.innerWidth,
@@ -238,13 +219,28 @@ function makeDraggable(circle) {
 // --- Tooltip ---
 function showTooltip(circle) {
   const data = circle.getAttr('data') || {};
-  const tooltip = new Konva.Group({
-    x: Math.min(circle.x() + 20, stage.width() - 200),
-    y: navbarHeight + 20,
-    listening: true
-  });
+  const tooltipWidth = 160;  // width of tooltip box
+const tooltipHeight = 200; // height of tooltip box
 
-  const boxWidth = 160, boxHeight = 200;
+// horizontal: center above the circle
+let tooltipX = circle.x() - tooltipWidth / 2;
+
+// vertical: just above the circle, but not above navbar
+let tooltipY = circle.y() - circle.radius() - tooltipHeight - 10; // 10px spacing
+
+// clamp to stage edges
+tooltipX = Math.max(50, Math.min(stage.width() - tooltipWidth, tooltipX));
+tooltipY = Math.max(navbarHeight + 20, tooltipY);
+
+const tooltip = new Konva.Group({
+  x: tooltipX,
+  y: tooltipY,
+  listening: true
+});
+
+    const boxWidth = tooltipWidth;
+    const boxHeight = tooltipHeight;
+  
   const box = new Konva.Rect({
     x: -60,
     y: -30,
