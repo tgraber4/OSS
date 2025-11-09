@@ -149,6 +149,11 @@ function clickPlay() {
         playButton.clicked = true;
 
         sendPlayRequestToBackend();
+
+        placedCircles.forEach(c =>
+        {
+          c.getAttr('arrow').hide();
+        });
         
         // Start the update loop
         updateInterval = setInterval(() => {
@@ -158,6 +163,12 @@ function clickPlay() {
     } else {
         playButton.Text.setAttr('text', 'Play');
         playButton.clicked = false;
+
+        placedCircles.forEach(c =>
+        {
+          update_arrow(c);
+          c.getAttr('arrow').show();
+        });
 
         // Stop the update loop
         if (updateInterval) {
@@ -175,6 +186,18 @@ function clickPlay() {
 }
 
 
+function update_arrow(circle)
+{
+  const data = circle.getAttr('data') || {};
+  const arrow = circle.getAttr('arrow') || {};
+
+  arrow.setAttr('x', circle.x());
+  arrow.setAttr('y', circle.y());
+
+  arrow.setAttr('points', [0, 0, 2*data.speed*Math.cos(data.direction*3.14159/180), -2*data.speed*Math.sin(data.direction*3.14159/180)]);
+  arrow.setAttr('pointerLength', Math.min(data.speed*0.25, 10));
+  arrow.setAttr('pointerWidth', Math.min(data.speed*0.25, 10));
+}
 
 
 
@@ -311,12 +334,17 @@ function makeDraggable(circle) {
     } else {
       deleteZone.opacity(0.6);
       deleteZone.shadowBlur(0);
+
+      update_arrow(circle);
     }
 
     backgroundLayer.batchDraw();
   });
 
   circle.on('dragend', () => {
+
+  update_arrow(circle);
+
   const maxIterations = 10; // prevent infinite loop
   let iteration = 0;
   let collided = true;
@@ -355,6 +383,7 @@ function makeDraggable(circle) {
   // Delete zone logic
   if (inDeleteZone(circle)) {
     deleteObject(circle);
+    deleteObject(circle.getAttr('arrow'));
     const idx = placedCircles.indexOf(circle);
     if (idx !== -1) placedCircles.splice(idx, 1);
   } else {
@@ -392,17 +421,20 @@ function makeDraggable(circle) {
 function showTooltip(circle) {
   const data = circle.getAttr('data') || {};
   const tooltipWidth = 160;  // width of tooltip box
-const tooltipHeight = 200; // height of tooltip box
+const tooltipHeight = 180; // height of tooltip box
+const spacing = 10;
 
 // horizontal: center above the circle
 let tooltipX = circle.x() - tooltipWidth / 2;
 
 // vertical: just above the circle, but not above navbar
-let tooltipY = circle.y() - circle.radius() - tooltipHeight - 10; // 10px spacing
+let tooltipY = circle.y() - circle.radius() - tooltipHeight - spacing; // 10px spacing
 
-// clamp to stage edges
-tooltipX = Math.max(50, Math.min(stage.width() - tooltipWidth, tooltipX));
-tooltipY = Math.max(navbarHeight + 20, tooltipY);
+if (tooltipY < navbarHeight + spacing) {
+  tooltipY = circle.y() + circle.radius() + spacing;
+}
+
+tooltipX = Math.max(0, Math.min(stage.width() - tooltipWidth, tooltipX));
 
 const tooltip = new Konva.Group({
   x: tooltipX,
@@ -410,14 +442,14 @@ const tooltip = new Konva.Group({
   listening: true
 });
 
- const boxWidth = tooltipWidth;
+    const boxWidth = tooltipWidth;
     const boxHeight = tooltipHeight;
-
-const box = new Konva.Rect({
-    x: -60,
-    y: -30,
-    width: boxWidth,
-    height: boxHeight,
+  
+  const box = new Konva.Rect({
+    x: 0,
+    y: 0,
+    width: tooltipWidth,
+    height: tooltipHeight,
     fill: 'black',
     opacity: 0.9,
     cornerRadius: 6,
@@ -493,7 +525,13 @@ const box = new Konva.Rect({
               val = Math.max(1, Math.min(celestialBodies[0].planetRadius, val));
               data[field.key] = val;
               circle.radius(Math.pow(val / celestialBodies[0].planetRadius, 0.3) * 50)
-
+              const img = circle.getAttr('imageObj');
+              if(img) {
+                const newRadius = circle.radius();
+                const scale = (2 * newRadius) / Math.min(img.width, img.height);
+                circle.fillPatternScale({ x: scale, y: scale });
+                circle.getLayer().batchDraw();
+              }
               resolveCollision(circle);
               t.text(`${field.label}: ${val}${field.suffix || ''}`);
               backgroundLayer.draw();
@@ -501,10 +539,12 @@ const box = new Konva.Rect({
             if(field.key === 'speed') {
               val = Math.max(0, Math.min(500, val)) 
               data[field.key] = val;
+              update_arrow(circle);
             }
             if(field.key === 'direction') {
               val = ((val % 360) + 360) % 360;
               data[field.key] = val;
+              update_arrow(circle);
             }
 
             data[field.key] = val;
@@ -516,7 +556,10 @@ const box = new Konva.Rect({
 
         input.addEventListener('blur', commit);
         input.addEventListener('keydown', (evt) => {
-          if (evt.key === 'Enter') input.blur();
+          if (evt.key === 'Enter')
+            {
+              input.blur();
+            }
         });
       });
     }
@@ -569,6 +612,7 @@ const box = new Konva.Rect({
         tooltip.destroy();
         circle._tooltip = null;
         circle.destroy();
+        circle.getAttr('arrow').destroy();
         const idx = placedCircles.indexOf(circle);
         if (idx !== -1) placedCircles.splice(idx, 1);
         deleteObject(circle);
@@ -718,23 +762,42 @@ function createCircle(x, y, radius, body, draggable = false, fromMenu = false, l
   circle.setAttr('data', { ...body });
   circle.setAttr('fromMenu', fromMenu);
 
+  const arrow = new Konva.Arrow({
+    x: circle.x(),
+    y: circle.y(),
+    points: [0, 0, 2*vel_mag*Math.cos(vel_dir*3.14159/180), -2*vel_mag*Math.sin(vel_dir*3.14159/180)],
+    pointerLength: Math.min(vel_mag*0.25, 10),
+    pointerWidth: Math.min(vel_mag*0.25, 10),
+    fill: 'white',
+    stroke: 'white',
+    strokeWidth: 4
+  });
+
+  layer.add(arrow);
+  circle.setAttr("arrow", arrow);
+
   if (body.image) {
     const img = new Image();
     img.src = body.image;
 
     img.onload = () => {
       // Scale the image so it completely covers the circle
-      const scale = (2 * radius) / Math.max(img.width, img.height);
+      circle.fillPatternImage(null);
+
+      const scale = (2 * radius) / Math.min(img.width, img.height);
 
       circle.fillPatternImage(img);
       circle.fillPatternRepeat('no-repeat');
       circle.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
       circle.fillPatternScale({ x: scale, y: scale });
+      circle.setAttr('imageObj', img);
+      circle._clearCache('fillPatternImage');
+
 
       // Optional: remove fill fallback if desired
       // circle.fill(null);
 
-      layer.batchDraw();
+      circle.getLayer().batchDraw();
     };
   }
 
@@ -795,6 +858,19 @@ function createCircleGroup(x, y, radius, body, draggable = false, fromMenu = fal
 let menuVisible=false;
 const menuTween = new Konva.Tween({ node: menuGroup, duration:0.4, y:navbarHeight, easing: Konva.Easings.EaseInOut });
 menuButton.on('click', ()=>{ menuVisible = !menuVisible; menuVisible?menuTween.play():menuTween.reverse(); });
+
+
+const navTitleText = new Konva.Text({
+  x : 340,
+  y: 14,
+  text: 'Objects in Space Simulator',
+  fontSize: 20,
+  fontFamily: 'monospace',
+  fill: '#00d0ffff'
+});
+
+uiLayer.add(navTitleText);
+uiLayer.draw();
 
 backgroundLayer.draw();
 uiLayer.draw();
