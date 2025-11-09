@@ -70,31 +70,41 @@ function clickLayout1() {
 function clickLayout2() {
     clickDelete();
 
-    createPlanet(0, 250, 400, 15, 90);
-    createPlanet(0, 550, 400, 15, -90);
+    var x = stage.width()/2;
+    var y = stage.height()/2 + navbarHeight/2;
+    createPlanet(0, x-150, y, 15, 90);
+    createPlanet(0, x+150, y, 15, -90);
 
     toggle_layout_menu();
 }
 
 function clickLayout3() {
-    clickDelete();
+    placedCircles.forEach(c => {
+        c.destroy();
+    });
 
-    createPlanet(0, 250, 400, 15, 90);
-    createPlanet(0, 550, 400, 15, -90);
+    var x = stage.width()/2;
+    var y = stage.height()/2 + navbarHeight/2;
+    createPlanet(0, x-150, y, 15, 90);
+    createPlanet(0, x+150, y, 15, -90);
 
-    createPlanet(2, 400, 450, 5.385, 68.1986);
-    createPlanet(2, 400, 350, 5, 126.87);
+    createPlanet(2, x, y+50, 5.385, 68.1986);
+    createPlanet(2, x, y-50, 5, 126.87);
 
     toggle_layout_menu()
 }
 
 function clickLayout4() {
-    clickDelete();
+    placedCircles.forEach(c => {
+        c.destroy();
+    });
 
-    createPlanet(0, 200, 400, 15, -90);
-    createPlanet(0, 600, 400, 15, 90);
-    createPlanet(0, 400, 200, 15, 180);
-    createPlanet(0, 400, 600, 15, 0);
+    var x = stage.width()/2;
+    var y = stage.height()/2 + navbarHeight/2;
+    createPlanet(0, x-200, y, 15, -90);
+    createPlanet(0, x+200, y, 15, 90);
+    createPlanet(0, x, y-200, 15, 180);
+    createPlanet(0, x, y+200, 15, 0);
 
     toggle_layout_menu()
 }
