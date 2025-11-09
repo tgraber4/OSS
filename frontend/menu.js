@@ -1,15 +1,20 @@
 // --- Celestial data ---
 const celestialBodies = [
-  { name: 'Sun', color: '#ffcc00', mass: 1.989e30, planetRadius: 696340, velocity: 0, acceleration: 0 },
-  { name: 'Mercury', color: '#bfbfbf', mass: 3.285e23, planetRadius: 2440, velocity: 0, acceleration: 0 },
-  { name: 'Venus', color: '#e0b24c', mass: 4.867e24, planetRadius: 6052, velocity: 0, acceleration: 0 },
-  { name: 'Earth', color: '#2a6bd4', mass: 5.972e24, planetRadius: 6371, velocity: 0, acceleration: 0 },
-  { name: 'Mars', color: '#d14b28', mass: 6.39e23, planetRadius: 3389, velocity: 0, acceleration: 0 },
-  { name: 'Jupiter', color: '#c48a3d', mass: 1.898e27, planetRadius: 69911, velocity: 0, acceleration: 0 },
-  { name: 'Saturn', color: '#d9c073', mass: 5.683e26, planetRadius: 58232, velocity: 0, acceleration: 0 },
-  { name: 'Uranus', color: '#7fc7ff', mass: 8.681e25, planetRadius: 25362, velocity: 0, acceleration: 0 },
-  { name: 'Neptune', color: '#4062fa', mass: 1.024e26, planetRadius: 24622, velocity: 0, acceleration: 0 },
+  { name: 'Sun', image: './images/sun.png', color: '#ffcc00', mass: 1.989e30, planetRadius: 696340, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Mercury', image: './images/cookie_mercury.png', color: '#bfbfbf', mass: 3.285e23, planetRadius: 2440, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Venus', image: './images/venus.png', color: '#e0b24c', mass: 4.867e24, planetRadius: 6052, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Earth', image: './images/ms_paint_earth.png', color: '#2a6bd4', mass: 5.972e24, planetRadius: 6371, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Mars', image: './images/mars.png', color: '#d14b28', mass: 6.39e23, planetRadius: 3389, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Jupiter', image: './images/jupiter.png', color: '#c48a3d', mass: 1.898e27, planetRadius: 69911, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Saturn', image: './images/saturn.png', color: '#d9c073', mass: 5.683e26, planetRadius: 58232, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Uranus', image: './images/uranus.png', color: '#7fc7ff', mass: 8.681e25, planetRadius: 25362, speed: 0, direction: 0, acceleration: 0 },
+  { name: 'Neptune', image: './images/neptune.png', color: '#4062fa', mass: 1.024e26, planetRadius: 24622, speed: 0, direction: 0, acceleration: 0 },
 ];
+
+
+
+// --- backend Requests ---
+
 const backendUrl = "http://127.0.0.1:5000";
 
 let updateInterval = null;
@@ -39,10 +44,11 @@ var deleteObject = function (customObject) {
 }
 
 class playDataObject {
-    constructor(id, mass, velocity, posx, posy) {
+    constructor(id, mass, velocity, direction, posx, posy) {
         this.id = id;
         this.mass = mass;
         this.velocity = velocity;
+        this.direction = direction;
         this.posx = posx;
         this.posy = posy;
     }
@@ -54,12 +60,12 @@ var getParams = function () {
     for (var i = 0; i < objects.length; i++) {
         var id = objects[i][1].getAttr('objIndex');
         var mass = objects[i][1].getAttr('data').mass
-        var velocity = objects[i][1].getAttr('data').velocity;
+        var velocity = objects[i][1].getAttr('data').speed;
+        var direction = objects[i][1].getAttr('data').direction;
         var posx = objects[i][1].x();
         var posy = objects[i][1].y();
-        playDataObjects.push(new playDataObject(id, mass, velocity, posx, posy))
+        playDataObjects.push(new playDataObject(id, mass, velocity, direction, posx, posy))
     }
-    console.log(playDataObjects);
 }
 
 var updatePositions = function (positionArray) {
@@ -71,6 +77,7 @@ var updatePositions = function (positionArray) {
     }
 }
 
+
 // Send initial planet data to backend to start simulation
 function sendPlayRequestToBackend() {
     getParams();
@@ -81,16 +88,15 @@ function sendPlayRequestToBackend() {
         pos: [obj.posx, obj.posy],
         mass: obj.mass,
         vel_mag: obj.velocity,
-        vel_deg: 0  // You might want to add a velocity direction field to your UI
+        vel_deg: obj.direction
     }));
-    
     fetch("http://127.0.0.1:5000/start_simulation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planets: planetsData })
     })
     .then(res => res.json())
-    .then(data => console.log("Simulation started:", data))
+    // .then(data => console.log("Simulation started:", data))
     .catch(error => console.error("Error starting simulation:", error));
 }
 
@@ -99,7 +105,6 @@ function getRequestFromBackend() {
     fetch("http://127.0.0.1:5000/update_positions")
     .then(res => res.json())
     .then(data => {
-        console.log("test");
         if (data.planets) {
             const positionArray = data.planets.map((planet) => {
                 return [planet.id, planet.pos[0], planet.pos[1]];
@@ -113,14 +118,88 @@ function getRequestFromBackend() {
 
 function sendPauseToBackend() {
   fetch("http://127.0.0.1:5000/pause_simulation", {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planets: planetsData })
     })
     .then(res => res.json())
-    .then(data => console.log("Simulation started:", data))
+    // .then(data => console.log("Simulation started:", data))
     .catch(error => console.error("Error starting simulation:", error));
 }
+
+function updateObjectsUponPause (data) {
+    console.log("Simulation paused:", data.planets.length)
+    for (var i =0; i < data.planets.length; i++) {
+        console.log(data.planets[i]["direction"])
+        var index = getObjectIndexFromId(data.planets[i]["id"]);
+        var physicalObject = objects[index][1];
+        physicalObject.x(data.planets[i]["pos"][0])
+        physicalObject.y(data.planets[i]["pos"][1])
+        let objData = physicalObject.getAttr('data')    
+        objData.speed = data.planets[i].vel; 
+        objData.direction = data.planets[i]["direction"];    
+        physicalObject.setAttr('data', objData); 
+    }
+    
+}
+
+function clickPlay() {
+    if (!playButton.clicked) {
+        playButton.Text.setAttr('text', 'Pause');
+        playButton.clicked = true;
+
+        sendPlayRequestToBackend();
+
+        placedCircles.forEach(c =>
+        {
+          c.getAttr('arrow').hide();
+        });
+        
+        // Start the update loop
+        updateInterval = setInterval(() => {
+            getRequestFromBackend()
+        }, 17); // ~60 FPS
+
+    } else {
+        playButton.Text.setAttr('text', 'Play');
+        playButton.clicked = false;
+
+        placedCircles.forEach(c =>
+        {
+          update_arrow(c);
+          c.getAttr('arrow').show();
+        });
+
+        // Stop the update loop
+        if (updateInterval) {
+            clearInterval(updateInterval);
+            updateInterval = null;
+        }
+
+        fetch(`${backendUrl}/pause_simulation`, {
+            method: "POST"
+        })
+        .then(res => res.json())
+        .then(data => updateObjectsUponPause(data))
+        .catch(error => console.error("Error pausing simulation:", error));
+    }
+}
+
+
+function update_arrow(circle)
+{
+  const data = circle.getAttr('data') || {};
+  const arrow = circle.getAttr('arrow') || {};
+
+  arrow.setAttr('x', circle.x());
+  arrow.setAttr('y', circle.y());
+
+  arrow.setAttr('points', [0, 0, 2*data.speed*Math.cos(data.direction*3.14159/180), -2*data.speed*Math.sin(data.direction*3.14159/180)]);
+  arrow.setAttr('pointerLength', Math.min(data.speed*0.25, 10));
+  arrow.setAttr('pointerWidth', Math.min(data.speed*0.25, 10));
+}
+
+
 
 function lightenHex(hex, amount = 0x11) {
     // Convert hex string to number
@@ -139,10 +218,6 @@ function lightenHex(hex, amount = 0x11) {
     // Convert back to hex string
     return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
-
-
-
-
 
 
 const stage = new Konva.Stage({
@@ -165,60 +240,24 @@ const navbarHeight = 50,
 const placedCircles = [];
 
 // --- Helper: create button ---
-function makeButton(x, y, w, h, text, layer, clickFn) {
-  const btn = new Konva.Rect({x, y, width: w, height: h, fill: '#555', cornerRadius: 0, listening: true});
+function makeButton(x, y, w, h, text, layer, clickFn, fill_value = '#555') {
+  const btn = new Konva.Rect({x, y, width: w, height: h, fill: fill_value, cornerRadius: 0, listening: true});
   const txt = new Konva.Text({x: x + w/2, y: y + h/2, text, fontSize: 16, fill: 'white', listening: false});
   txt.offsetX(txt.width()/2); txt.offsetY(txt.height()/2);
   layer.add(btn, txt);
   btn.on('mouseenter', ()=>{ btn.fill('#777'); layer.draw(); });
-  btn.on('mouseleave', ()=>{ btn.fill('#555'); layer.draw(); });
+  btn.on('mouseleave', ()=>{ btn.fill(fill_value); layer.draw(); });
   
-  btn.on('mouseover', function (e) {
-  e.target.getStage().container().style.cursor = 'pointer';
-  });
-  btn.on('mouseout', function (e) {
-    e.target.getStage().container().style.cursor = 'default';
-  });
+  btn.on('mouseover', function (e) { e.target.getStage().container().style.cursor = 'pointer'; });
+  btn.on('mouseout', function (e) { e.target.getStage().container().style.cursor = 'default'; });
 
   btn.Text = txt;
-
+  
   if(clickFn) btn.on('click', clickFn);
   return btn;
 }
 
 // --- Navbar & buttons ---
-
-function clickPlay() {
-    if (!playButton.clicked) {
-        playButton.Text.setAttr('text', 'Pause');
-        playButton.clicked = true;
-
-        sendPlayRequestToBackend();
-        
-        // Start the update loop
-        updateInterval = setInterval(() => {
-            getRequestFromBackend()
-        }, 17); // ~60 FPS
-
-    } else {
-        playButton.Text.setAttr('text', 'Play');
-        playButton.clicked = false;
-
-        // Stop the update loop
-        if (updateInterval) {
-            clearInterval(updateInterval);
-            updateInterval = null;
-        }
-
-        fetch(`${backendUrl}/pause_simulation`, {
-            method: "POST"
-        })
-        .then(res => res.json())
-        .then(data => console.log("Simulation paused:", data))
-        .catch(error => console.error("Error pausing simulation:", error));
-    }
-}
-
 
 uiLayer.add(new Konva.Rect({x:0, y:0, width:stage.width(), height:navbarHeight, fill:'#333'}));
 const menuButton = makeButton(0,0,menuWidth,navbarHeight,'Object Menu', uiLayer),
@@ -271,235 +310,324 @@ function makeDraggable(circle) {
     dragging = true;
     circle._lastValidPosition = { x: circle.x(), y: circle.y() };
 
-    // Destroy tooltip if it exists
-    if(circle._tooltip){ 
-      circle._tooltip.destroy(); 
-      circle._tooltip = null; 
-      backgroundLayer.draw(); 
+    if (circle._tooltip) {
+      circle._tooltip.destroy();
+      circle._tooltip = null;
+      backgroundLayer.draw();
     }
 
     deleteZone.show();
     backgroundLayer.draw();
 
-
-    if(circle.getAttr('fromMenu') && menuVisible){ menuTween.reverse(); menuVisible=false; }
+    if (circle.getAttr('fromMenu') && menuVisible) {
+      menuTween.reverse();
+      menuVisible = false;
+    }
+    circle.moveToTop();
   });
 
   circle.on('dragmove', () => {
-    // Show delete zone
-    if(inDeleteZone(circle)){ deleteZone.opacity(0.9); deleteZone.shadowBlur(40); }
-    else { deleteZone.opacity(0.6); deleteZone.shadowBlur(0); }
-
-    // Prevent overlap by checking next position
-    const pos = {x: circle.x(), y: circle.y()};
-    const collided = placedCircles.some(other => {
-      if(other === circle) return false;
-      const oRect = other.getClientRect();
-      const cRect = {
-        x: pos.x - circle.radius(),
-        y: pos.y - circle.radius(),
-        width: circle.radius()*2,
-        height: circle.radius()*2
-      };
-      return !(cRect.x + cRect.width < oRect.x || cRect.x > oRect.x + oRect.width ||
-               cRect.y + cRect.height < oRect.y || cRect.y > oRect.y + oRect.height);
-    });
-
-    if(collided){
-      circle.position(circle._lastValidPosition);
+    circle.moveToTop();
+    if (inDeleteZone(circle)) {
+      deleteZone.opacity(0.9);
+      deleteZone.shadowBlur(40);
     } else {
-      circle._lastValidPosition = pos;
+      deleteZone.opacity(0.6);
+      deleteZone.shadowBlur(0);
+
+      update_arrow(circle);
     }
 
     backgroundLayer.batchDraw();
   });
 
   circle.on('dragend', () => {
-    if(inDeleteZone(circle)){
-      deleteObject(circle);
-      const idx = placedCircles.indexOf(circle);
-      if(idx!==-1) placedCircles.splice(idx,1);
-    } else {
-      circle.moveToBottom();
-      addObject(circle);
-    }
 
-    deleteZone.hide();
-    deleteZone.shadowBlur(0);
-    deleteZone.opacity(0.6);
-    backgroundLayer.draw();
+  update_arrow(circle);
 
-    if(circle.getAttr('fromMenu') && !menuVisible){ menuTween.play(); menuVisible=true;}
-    dragging=false;
-    circle.setAttr('fromMenu', false);
-  });
+  const maxIterations = 10; // prevent infinite loop
+  let iteration = 0;
+  let collided = true;
 
-  circle.on('click', (e)=>{
-    if(!dragging){
-      // Destroy previous tooltip
-      placedCircles.forEach(c=>{ if(c._tooltip) { c._tooltip.destroy(); c._tooltip=null; } });
-      circle._tooltip = showTooltip(circle);
-      backgroundLayer.draw();
-      e.cancelBubble = true; // prevent stage click
-    }
-  });
-}
+  while (collided && iteration < maxIterations) {
+    collided = false;
+    iteration++;
 
-// --- Tooltip ---
-function showTooltip(circle){
-  const data = circle.getAttr('data') || {};
-  const tooltip = new Konva.Group({
-    x: circle.x(),
-    y: circle.y() - circle.radius() - 175, // a bit closer
-    listening: true
-  });
+    for (let other of placedCircles) {
+      if (other === circle) continue;
 
-  const box = new Konva.Rect({
-    x: -50, y: -30, width: 150, height: 200,
-    fill: 'black', opacity: 0.9, listening: true
-  });
+      let dx = circle.x() - other.x();
+      let dy = circle.y() - other.y();
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      const minDist = circle.radius() + other.radius();
 
-  const padding = 10;
-  const text = new Konva.Text({
-    x: box.x() + padding, y: box.y() + 10, text: `Name: ${data.name}\nRadius: ${data.planetRadius}km\nMass: ${data.mass}kg\nVelocity: ${data.velocity}m/s\nAcceleration: ${data.acceleration}m/s^2`, fontSize: 14,
-    fill: 'white', align: 'left'
-  });
-  // make the text non-listening so clicks pass to buttons underneath
-  text.listening(true);
+      if (distance < minDist) {
+        collided = true;
+        // Avoid divide by zero
+        if (distance === 0) {
+          dx = Math.random() - 0.5;
+          dy = Math.random() - 0.5;
+          distance = Math.sqrt(dx * dx + dy * dy);
+        }
 
-  text.on('click', (e) => {
-  e.cancelBubble = true;
+        const overlap = minDist - distance;
+        const nx = dx / distance;
+        const ny = dy / distance;
 
-  const data = circle.getAttr('data');
-  const canvasBox = stage.container().getBoundingClientRect();
-  const tooltipPos = tooltip.getClientRect();
-
-  // Fields to edit and their line indices in the tooltip
-  const editableFields = [
-    { key: 'planetRadius', lineIndex: 1 },
-    { key: 'mass', lineIndex: 2 },
-    { key: 'velocity', lineIndex: 3 }
-  ];
-  const lineHeight = text.fontSize() + 2;
-
-  editableFields.forEach(field => {
-    const inputLeft = canvasBox.left + tooltipPos.x + tooltipPos.width + 5;
-    const inputTop  = canvasBox.top + tooltipPos.y + 10 + field.lineIndex * lineHeight;
-
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.value = data[field.key];
-    input.style.position = 'absolute';
-    input.style.left = `${inputLeft}px`;
-    input.style.top = `${inputTop}px`;
-    input.style.width = '80px';
-    input.style.fontSize = `${text.fontSize()}px`;
-    input.style.background = 'rgba(0,0,0,0.8)';
-    input.style.color = 'white';
-    input.style.border = 'none';
-    input.style.padding = '2px';
-    input.style.outline = 'none';
-
-    document.body.appendChild(input);
-    input.focus();
-
-    input.addEventListener('blur', () => {
-      const value = parseFloat(input.value);
-      if (!isNaN(value)) {
-        circle.getAttr('data')[field.key] = value;
-
-        // Update tooltip text
-        const d = circle.getAttr('data');
-        text.text(`Name: ${d.name}\nRadius: ${d.planetRadius}km\nMass: ${d.mass}kg\nVelocity: ${d.velocity}m/s\nAcceleration: ${d.acceleration}m/s^2`);
-        backgroundLayer.draw();
+        circle.x(circle.x() + nx * overlap);
+        circle.y(circle.y() + ny * overlap);
       }
-      document.body.removeChild(input);
-    });
+    }
+  }
 
-    input.addEventListener('keydown', (evt) => {
-      if (evt.key === 'Enter') input.blur();
-    });
-  });
+  // Delete zone logic
+  if (inDeleteZone(circle)) {
+    deleteObject(circle);
+    deleteObject(circle.getAttr('arrow'));
+    const idx = placedCircles.indexOf(circle);
+    if (idx !== -1) placedCircles.splice(idx, 1);
+  } else {
+    circle.moveToBottom();
+    addObject(circle);
+  }
+
+  deleteZone.hide();
+  deleteZone.shadowBlur(0);
+  deleteZone.opacity(0.6);
+  backgroundLayer.draw();
+
+  if (circle.getAttr('fromMenu') && !menuVisible) {
+    menuTween.play();
+    menuVisible = true;
+  }
+
+  circle.setAttr('fromMenu', false);
+  dragging = false;
 });
 
 
-
-  const closeBtn = new Konva.Rect({
-    x: box.x() + box.width() - 18,
-    y: box.y() + 6,
-    width: 12, height: 12, fill: 'red', cornerRadius: 2, listening: true
-  });
-  closeBtn.on('click', (e) => {
-    e.cancelBubble = true;              // stop stage handler
-    tooltip.destroy();
-    circle._tooltip = null;
-    backgroundLayer.draw();
+  circle.on('click', e => {
+    if (!dragging) {
+      placedCircles.forEach(c => { if (c._tooltip) { c._tooltip.destroy(); c._tooltip = null; } });
+      circle._tooltip = showTooltip(circle);
+      backgroundLayer.draw();
+      e.cancelBubble = true;
+    }
   });
 
-  // Delete button (rect) — text on top is non-listening so clicks hit this rect
+}
+
+// --- Tooltip ---
+function showTooltip(circle) {
+  const data = circle.getAttr('data') || {};
+  const tooltipWidth = 160;  // width of tooltip box
+const tooltipHeight = 180; // height of tooltip box
+const spacing = 10;
+
+// horizontal: center above the circle
+let tooltipX = circle.x() - tooltipWidth / 2;
+
+// vertical: just above the circle, but not above navbar
+let tooltipY = circle.y() - circle.radius() - tooltipHeight - spacing; // 10px spacing
+
+if (tooltipY < navbarHeight + spacing) {
+  tooltipY = circle.y() + circle.radius() + spacing;
+}
+
+tooltipX = Math.max(0, Math.min(stage.width() - tooltipWidth, tooltipX));
+
+const tooltip = new Konva.Group({
+  x: tooltipX,
+  y: tooltipY,
+  listening: true
+});
+
+    const boxWidth = tooltipWidth;
+    const boxHeight = tooltipHeight;
+  
+  const box = new Konva.Rect({
+    x: 0,
+    y: 0,
+    width: tooltipWidth,
+    height: tooltipHeight,
+    fill: 'black',
+    opacity: 0.9,
+    cornerRadius: 6,
+    listening: true
+  });
+
+  tooltip.add(box);
+
+  const fields = [
+    { label: 'Name', key: 'name', editable: false },
+    { label: 'Radius', key: 'planetRadius', suffix: ' km', editable: true },
+    { label: 'Mass', key: 'mass', suffix: ' kg', editable: true },
+    { label: 'Speed', key: 'speed', suffix: ' km/s', editable: true },
+    { label: 'Direction', key: 'direction', suffix: '\u00B0', editable: true },
+    { label: 'Acceleration', key: 'acceleration', suffix: ' m/s²', editable: false }
+  ];
+
+  const startY = box.y() + 12;
+  const lineHeight = 20;
+
+  fields.forEach((field, i) => {
+    const y = startY + i * lineHeight;
+    const t = new Konva.Text({
+      x: box.x() + 10,
+      y,
+      text: `${field.label}: ${data[field.key]}${field.suffix || ''}`,
+      fontSize: 14,
+      fill: '#fff',
+      listening: field.editable // only editable lines will respond to events
+    });
+
+    if (field.editable) {
+      // Hover highlight for editable lines
+      t.on('mouseenter', () => {
+        t.fill('#0ff');
+        backgroundLayer.draw();
+        stage.container().style.cursor = 'pointer';
+      });
+      t.on('mouseleave', () => {
+        t.fill('#fff');
+        backgroundLayer.draw();
+        stage.container().style.cursor = 'default';
+      });
+
+      // Inline editing for editable lines
+      t.on('click', (e) => {
+        e.cancelBubble = true;
+        const canvasBox = stage.container().getBoundingClientRect();
+        const textBox = t.getClientRect();
+        const input = document.createElement('input');
+
+        input.type = 'number';
+        input.value = data[field.key];
+        input.style.position = 'absolute';
+        input.style.left = `${canvasBox.left + textBox.x + textBox.width + 5}px`;
+        input.style.top = `${canvasBox.top + textBox.y}px`;
+        input.style.width = '80px';
+        input.style.fontSize = '14px';
+        input.style.background = 'rgba(0,0,0,0.85)';
+        input.style.color = 'white';
+        input.style.border = '1px solid #777';
+        input.style.padding = '2px 4px';
+        input.style.outline = 'none';
+        input.style.zIndex = 1000;
+
+        document.body.appendChild(input);
+        input.focus();
+
+        const commit = () => {
+          let val = parseFloat(input.value);
+          if (!isNaN(val)) {
+            if(field.key === 'planetRadius') {
+              val = Math.max(1, Math.min(celestialBodies[0].planetRadius, val));
+              data[field.key] = val;
+              circle.radius(Math.pow(val / celestialBodies[0].planetRadius, 0.3) * 50)
+              const img = circle.getAttr('imageObj');
+              if(img) {
+                const newRadius = circle.radius();
+                const scale = (2 * newRadius) / Math.min(img.width, img.height);
+                circle.fillPatternScale({ x: scale, y: scale });
+                circle.getLayer().batchDraw();
+              }
+              resolveCollision(circle);
+              t.text(`${field.label}: ${val}${field.suffix || ''}`);
+              backgroundLayer.draw();
+            }
+            if(field.key === 'speed') {
+              val = Math.max(0, Math.min(500, val)) 
+              data[field.key] = val;
+              update_arrow(circle);
+            }
+            if(field.key === 'direction') {
+              val = ((val % 360) + 360) % 360;
+              data[field.key] = val;
+              update_arrow(circle);
+            }
+
+            data[field.key] = val;
+            t.text(`${field.label}: ${val}${field.suffix || ''}`);
+            backgroundLayer.draw();
+          }
+          document.body.removeChild(input);
+        };
+
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', (evt) => {
+          if (evt.key === 'Enter')
+            {
+              input.blur();
+            }
+        });
+      });
+    }
+
+    tooltip.add(t);
+  });
+
+
+  // --- Delete button ---
+  const deleteBtnY = startY + fields.length * lineHeight + 10;
   const deleteBtn = new Konva.Rect({
     x: box.x() + 10,
-    y: box.y() + box.height() - 34,
+    y: deleteBtnY,
     width: 100,
-    height: 24,
+    height: 26,
     fill: '#c33',
     cornerRadius: 4,
     listening: true
   });
 
   const deleteText = new Konva.Text({
-    x: deleteBtn.x() + deleteBtn.width()/2,
-    y: deleteBtn.y() + deleteBtn.height()/2,
+    x: deleteBtn.x() + deleteBtn.width() / 2,
+    y: deleteBtn.y() + deleteBtn.height() / 2,
     text: 'Delete',
     fontSize: 14,
     fill: 'white'
   });
-  deleteText.offsetX(deleteText.width()/2);
-  deleteText.offsetY(deleteText.height()/2);
-  deleteText.listening(false); // allow rect to receive the click
+  deleteText.offsetX(deleteText.width() / 2);
+  deleteText.offsetY(deleteText.height() / 2);
+  deleteText.listening(false);
 
-deleteBtn.on('click', (e) => {
-  e.cancelBubble = true;
-
-  // Fade out both tooltip and circle smoothly
-  const fadeDuration = 0.1;
-
-  const fadeOutCircle = new Konva.Tween({
-    node: circle,
-    duration: fadeDuration,
-    opacity: 0,
-    onFinish: () => {
-      const idx = placedCircles.indexOf(circle);
-      if (idx !== -1) placedCircles.splice(idx, 1);
-      deleteObject(circle);
-      backgroundLayer.draw();
-    }
+  deleteBtn.on('mouseenter', () => {
+    deleteBtn.fill('#e44');
+    backgroundLayer.draw();
+    stage.container().style.cursor = 'pointer';
+  });
+  deleteBtn.on('mouseleave', () => {
+    deleteBtn.fill('#c33');
+    backgroundLayer.draw();
+    stage.container().style.cursor = 'default';
   });
 
-  const fadeOutTooltip = new Konva.Tween({
-    node: tooltip,
-    duration: fadeDuration,
-    opacity: 0,
-    onFinish: () => {
-      tooltip.destroy();
-      circle._tooltip = null;
-      backgroundLayer.draw();
-    }
+  deleteBtn.on('click', (e) => {
+    e.cancelBubble = true;
+    const fadeOutTooltip = new Konva.Tween({
+      node: tooltip,
+      duration: 0.1,
+      opacity: 0,
+      onFinish: () => {
+        tooltip.destroy();
+        circle._tooltip = null;
+        circle.destroy();
+        circle.getAttr('arrow').destroy();
+        const idx = placedCircles.indexOf(circle);
+        if (idx !== -1) placedCircles.splice(idx, 1);
+        deleteObject(circle);
+        backgroundLayer.draw();
+      }
+    });
+    fadeOutTooltip.play();
   });
 
-  fadeOutCircle.play();
-  fadeOutTooltip.play();
-});
-
-
-  tooltip.add(box, text, closeBtn, deleteBtn, deleteText);
+  tooltip.add(deleteBtn, deleteText);
   backgroundLayer.add(tooltip);
 
-  // keep a reference so other code can close it
   circle._tooltip = tooltip;
   return tooltip;
 }
-
 
 // --- Stage click closes tooltip ---
 stage.on('click', ()=>{
@@ -509,38 +637,34 @@ stage.on('click', ()=>{
 
 // --- Menu circles ---
 celestialBodies.forEach((body, i) => {
-  const circle = new Konva.Circle({
-    x: menuWidth / 2,
-    y: 60 + i * spacing,
-    radius,
-    fill: body.color,
-    stroke: '#555',
-    strokeWidth: 2,
-  });
+  const x = menuWidth / 2;
+  const y = 60 + i * spacing;
+
+  // Create menu circle
+  const circle = createCircle(x, y, radius, body, false, false, backgroundLayer);
 
   const label = new Konva.Text({
-    x: circle.x(),
-    y: circle.y() - radius - 20,
+    x,
+    y: y - radius - 20,
     text: body.name,
     fontSize: 14,
     fill: 'white',
     align: 'center',
   });
-  label.offsetX(label.width() / 2)
+  label.offsetX(label.width() / 2);
 
-  // store the planet data
-  circle.setAttr('data', body);
-
+  // Hover highlight (lighter color only if no image)
   circle.on('mouseenter', () => {
-    circle.fill(lightenHex(body.color));
+    circle.stroke('#0ff');
     backgroundLayer.draw();
   });
 
   circle.on('mouseleave', () => {
-    circle.fill(body.color);
+    circle.stroke('#555');
     backgroundLayer.draw();
   });
 
+  // When user drags from menu
   circle.on('mousedown', () => {
     const pos = stage.getPointerPosition();
 
@@ -548,35 +672,22 @@ celestialBodies.forEach((body, i) => {
     const baseVisualRadius = 50;
     const exponent = 0.3;
 
-    let scaledRadius;
-    if(body.name === 'Sun') {
-      scaledRadius = baseVisualRadius;
-  } else {
-    scaledRadius = Math.max(5, Math.pow(body.planetRadius / sunRadius, exponent) * baseVisualRadius);
-  }
-    const clone = new Konva.Circle({
-      x: pos.x,
-      y: pos.y,
-      radius: scaledRadius,
-      fill: body.color,
-      stroke: '#555',
-      strokeWidth: 2,
-      draggable: true,
-    });
-    // copy planet data into the clone
-    clone.setAttr('data', { ...body });
-    clone.setAttr('fromMenu', true);
+    const scaledRadius = body.name === 'Sun'
+      ? baseVisualRadius
+      : Math.max(5, Math.pow(body.planetRadius / sunRadius, exponent) * baseVisualRadius);
 
-
+    // Create new planet clone using your helper
+    const clone = createCircle(pos.x, pos.y, scaledRadius, body, true, true, backgroundLayer);
     backgroundLayer.add(clone);
     makeDraggable(clone);
     clone.startDrag();
+
     placedCircles.push(clone);
-    backgroundLayer.draw();
   });
 
   menuContentGroup.add(circle, label);
 });
+
 
 
 // --- Scroll menu content with wheel (smooth) ---
@@ -596,10 +707,170 @@ stage.on('wheel', (e)=>{
   }
 });
 
+function resolveCollision(circle) {
+  const maxIterations = 10; // avoid infinite loops
+  let iteration = 0;
+  let collided = true;
+
+  while (collided && iteration < maxIterations) {
+    collided = false;
+    iteration++;
+
+    for (let other of placedCircles) {
+      if (other === circle) continue;
+
+      let dx = circle.x() - other.x();
+      let dy = circle.y() - other.y();
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      const minDist = circle.radius() + other.radius();
+
+      if (distance < minDist) {
+        collided = true;
+
+        // handle exact same position
+        if (distance === 0) {
+          dx = Math.random() - 0.5;
+          dy = Math.random() - 0.5;
+          distance = Math.sqrt(dx * dx + dy * dy);
+        }
+
+        const overlap = minDist - distance;
+        const nx = dx / distance;
+        const ny = dy / distance;
+
+        // move circle just outside the other
+        circle.x(circle.x() + nx * overlap);
+        circle.y(circle.y() + ny * overlap);
+      }
+    }
+  }
+}
+
+
+function createCircle(x, y, radius, body, draggable = false, fromMenu = false, layer = backgroundLayer, vel_mag = 0, vel_dir = 0) {
+  const circle = new Konva.Circle({
+    x,
+    y,
+    radius,
+    stroke: '#555',
+    strokeWidth: 2,
+    draggable,
+  });
+
+  body.speed = vel_mag;
+  body.direction = vel_dir;
+  circle.setAttr('data', { ...body });
+  circle.setAttr('fromMenu', fromMenu);
+
+  const arrow = new Konva.Arrow({
+    x: circle.x(),
+    y: circle.y(),
+    points: [0, 0, 2*vel_mag*Math.cos(vel_dir*3.14159/180), -2*vel_mag*Math.sin(vel_dir*3.14159/180)],
+    pointerLength: Math.min(vel_mag*0.25, 10),
+    pointerWidth: Math.min(vel_mag*0.25, 10),
+    fill: 'white',
+    stroke: 'white',
+    strokeWidth: 4
+  });
+
+  layer.add(arrow);
+  circle.setAttr("arrow", arrow);
+
+  if (body.image) {
+    const img = new Image();
+    img.src = body.image;
+
+    img.onload = () => {
+      // Scale the image so it completely covers the circle
+      circle.fillPatternImage(null);
+
+      const scale = (2 * radius) / Math.min(img.width, img.height);
+
+      circle.fillPatternImage(img);
+      circle.fillPatternRepeat('no-repeat');
+      circle.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
+      circle.fillPatternScale({ x: scale, y: scale });
+      circle.setAttr('imageObj', img);
+      circle._clearCache('fillPatternImage');
+
+
+      // Optional: remove fill fallback if desired
+      // circle.fill(null);
+
+      circle.getLayer().batchDraw();
+    };
+  }
+
+  return circle;
+}
+
+
+
+
+function createCircleGroup(x, y, radius, body, draggable = false, fromMenu = false, layer = backgroundLayer, vel_mag = 0, vel_dir = 0) {
+  const group = new Konva.Group({ x, y, draggable });
+
+  // Base circle (for stroke and fallback color)
+  const circle = new Konva.Circle({
+    radius,
+    stroke: '#555',
+    strokeWidth: 2,
+    fill: body.image ? null : body.color,
+  });
+  group.add(circle);
+
+  group.setAttr('data', { ...body });
+  group.setAttr('fromMenu', fromMenu);
+
+  // Add image if present
+  if (body.image) {
+    const img = new Image();
+    img.src = body.image;
+
+    img.onload = () => {
+      const imageNode = new Konva.Image({
+        image: img,
+        width: radius * 2,
+        height: radius * 2,
+        offsetX: radius,
+        offsetY: radius,
+        listening: false, // don't block events
+      });
+
+      // Use the circle as a clip to mask the image
+      imageNode.cache();
+      imageNode.clipFunc((ctx) => {
+        ctx.beginPath();
+        ctx.arc(radius, radius, radius, 0, Math.PI * 2);
+        ctx.closePath();
+      });
+
+      group.add(imageNode);
+      layer.batchDraw();
+    };
+  }
+
+  return group;
+}
+
+
 // --- Menu tween ---
 let menuVisible=false;
 const menuTween = new Konva.Tween({ node: menuGroup, duration:0.4, y:navbarHeight, easing: Konva.Easings.EaseInOut });
 menuButton.on('click', ()=>{ menuVisible = !menuVisible; menuVisible?menuTween.play():menuTween.reverse(); });
+
+
+const navTitleText = new Konva.Text({
+  x : 340,
+  y: 14,
+  text: 'Objects in Space Simulator',
+  fontSize: 20,
+  fontFamily: 'monospace',
+  fill: '#00d0ffff'
+});
+
+uiLayer.add(navTitleText);
+uiLayer.draw();
 
 backgroundLayer.draw();
 uiLayer.draw();
