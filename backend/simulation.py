@@ -1,9 +1,9 @@
-from math import cos, sin, pi, atan2
+from math import cos, sin, pi, atan2, degrees
 
 class SimulationManager:
     def __init__(self):
         self.planets = []
-        self.dt = .5
+        self.dt = .1
         self.running = False
 
     def start(self, planets_data):
@@ -13,12 +13,13 @@ class SimulationManager:
             thingid = obj.get("id", 0)
             pos = obj.get("pos", [0, 0])
             mass = obj.get("mass", 1)
-            vel_mag = obj.get("vel_mag", 0)
-            vel_deg = obj.get("vel_deg", 0)
+            vel_mag = obj.get("vel_mag", 2)
+            vel_deg = obj.get("vel_deg", 2)
 
             # Convert polar velocity (magnitude + angle) to Cartesian (x, y)
             vx = vel_mag * cos(vel_deg * pi / 180)
-            vy = vel_mag * sin(vel_deg * pi / 180)
+            vy = -vel_mag * sin(vel_deg * pi / 180)
+
 
             self.planets.append(Planet(thingid=thingid, p=pos, m=mass, v=(vx, vy)))
         # Store initial planets as deep copies of Planet objects for reset
@@ -59,8 +60,9 @@ class SimulationManager:
     
     def _get_planet_data(self):
         """Helper to return all planet info in JSON-friendly format."""
-        return [ # (p.vel.x**2, p.vel.y**2)**0.5, atan2(-p.vel.y, p.vel.x)
-            {"id": p.thingid, "pos": [p.pos.x, p.pos.y], "vel": [p.vel.x, p.vel.y]}
+        return [ # (p.vel.x**2 + p.vel.y**2)**0.5, atan2(-p.vel.y, p.vel.x)
+            {"id": p.thingid, "pos": [p.pos.x, p.pos.y], "vel": (p.vel.x**2 + p.vel.y**2)**0.5, "direction":
+             degrees(atan2(-p.vel.y, p.vel.x))} # (degrees(atan2(p.vel.y, p.vel.x))+360)%360
             for p in self.planets
         ]
 

@@ -6,6 +6,12 @@ import copy
 app = Flask(__name__)
 CORS(app)
 
+
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
+
 # Single global simulation manager
 sim = SimulationManager()
 
@@ -25,7 +31,7 @@ def update_positions():
         "planets": sim.update()
     }), 200
 
-@app.route("/pause_simulation", methods=["GET"])
+@app.route("/pause_simulation", methods=["POST"])
 def pause_simulation():
     """Pause the simulation and return current planet data."""
     return jsonify({

@@ -44,10 +44,11 @@ var deleteObject = function (customObject) {
 }
 
 class playDataObject {
-    constructor(id, mass, velocity, posx, posy) {
+    constructor(id, mass, velocity, direction, posx, posy) {
         this.id = id;
         this.mass = mass;
         this.velocity = velocity;
+        this.direction = direction;
         this.posx = posx;
         this.posy = posy;
     }
@@ -59,12 +60,12 @@ var getParams = function () {
     for (var i = 0; i < objects.length; i++) {
         var id = objects[i][1].getAttr('objIndex');
         var mass = objects[i][1].getAttr('data').mass
-        var velocity = objects[i][1].getAttr('data').velocity;
+        var velocity = objects[i][1].getAttr('data').speed;
+        var direction = objects[i][1].getAttr('data').direction;
         var posx = objects[i][1].x();
         var posy = objects[i][1].y();
-        playDataObjects.push(new playDataObject(id, mass, velocity, posx, posy))
+        playDataObjects.push(new playDataObject(id, mass, velocity, direction, posx, posy))
     }
-    console.log(playDataObjects);
 }
 
 var updatePositions = function (positionArray) {
@@ -76,6 +77,7 @@ var updatePositions = function (positionArray) {
     }
 }
 
+
 // Send initial planet data to backend to start simulation
 function sendPlayRequestToBackend() {
     getParams();
@@ -86,16 +88,15 @@ function sendPlayRequestToBackend() {
         pos: [obj.posx, obj.posy],
         mass: obj.mass,
         vel_mag: obj.velocity,
-        vel_deg: 0  // You might want to add a velocity direction field to your UI
+        vel_deg: obj.direction
     }));
-    
     fetch("http://127.0.0.1:5000/start_simulation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planets: planetsData })
     })
     .then(res => res.json())
-    .then(data => console.log("Simulation started:", data))
+    // .then(data => console.log("Simulation started:", data))
     .catch(error => console.error("Error starting simulation:", error));
 }
 
@@ -104,7 +105,6 @@ function getRequestFromBackend() {
     fetch("http://127.0.0.1:5000/update_positions")
     .then(res => res.json())
     .then(data => {
-        console.log("test");
         if (data.planets) {
             const positionArray = data.planets.map((planet) => {
                 return [planet.id, planet.pos[0], planet.pos[1]];
@@ -118,15 +118,28 @@ function getRequestFromBackend() {
 
 function sendPauseToBackend() {
   fetch("http://127.0.0.1:5000/pause_simulation", {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planets: planetsData })
     })
     .then(res => res.json())
-    .then(data => console.log("Simulation started:", data))
+    // .then(data => console.log("Simulation started:", data))
     .catch(error => console.error("Error starting simulation:", error));
 }
 
+function updateObjectsUponPause (data) {
+    console.log("Simulation paused:", data.planets.length)
+    for (var i =0; i < data.planets.length; i++) {
+        console.log(data.planets[i])
+        var index = getObjectIndexFromId(data.planets[i]["id"]);
+        var physicalObject = objects[index][1];
+        physicalObject.x(data.planets[i]["pos"][0])
+        physicalObject.y(data.planets[i]["pos"][1])
+        physicalObject.setAttr('speed', data.planets[i]["vel"]);
+        physicalObject.setAttr('direction', data.planets[i]["direction"]);
+    }
+    
+}
 
 function clickPlay() {
     if (!playButton.clicked) {
@@ -154,7 +167,7 @@ function clickPlay() {
             method: "POST"
         })
         .then(res => res.json())
-        .then(data => console.log("Simulation paused:", data))
+        .then(data => updateObjectsUponPause(data))
         .catch(error => console.error("Error pausing simulation:", error));
     }
 }
