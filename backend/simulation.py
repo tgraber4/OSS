@@ -60,7 +60,7 @@ class SimulationManager:
     def _get_planet_data(self):
         """Helper to return all planet info in JSON-friendly format."""
         return [ # (p.vel.x**2, p.vel.y**2)**0.5, atan2(-p.vel.y, p.vel.x)
-            {"id": p.thingid, "pos": [p.pos.x, p.pos.y], "vel": [p.vel.x, p.vel.y], "mass": p.mass}
+            {"id": p.thingid, "pos": [p.pos.x, p.pos.y], "vel": [p.vel.x, p.vel.y]}
             for p in self.planets
         ]
 
