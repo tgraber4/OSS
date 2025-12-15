@@ -26,6 +26,7 @@ function clickDelete() {
 
 function toggle_layout_menu()
 {
+    if(!window.menuAccessible) return;
     layout_menu_visible = !layout_menu_visible;
     layout_menu_visible ? layoutMenuTween.play() : layoutMenuTween.reverse(); 
 }

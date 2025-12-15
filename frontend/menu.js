@@ -25,7 +25,7 @@ var playcounter = 0;
 
 var resetCopy = [];
 
-var menuAccessable = true;
+var menuAccessible = true;
 
 var getObjectIndexFromId = function (id) {
     for (var i=0; i < objects.length; i++) {
@@ -167,7 +167,7 @@ function clickPlay() {
           // reset copy
         }
 
-        menuAccessable = false;
+        window.menuAccessible = false;
         if (menuVisible) { 
           menuTween.reverse();
           menuVisible = false;
@@ -192,7 +192,7 @@ function clickPlay() {
           makeDraggable(objects[i][1]);
         }
 
-        menuAccessable = true;
+        window.menuAccessible = true;
 
         // Stop the update loop
         if (updateInterval) {
@@ -270,17 +270,21 @@ function makeButton(x, y, w, h, text, layer, clickFn, fill_value = '#555') {
   txt.offsetX(txt.width()/2); txt.offsetY(txt.height()/2);
   layer.add(btn, txt);
   btn.on('mouseenter', ()=>{ 
-    if ((text != "Object Menu" && text != "") || (text == "Object Menu" && menuAccessable)) {
+    if (!window.menuAccessible && !btn.isPlayButton) return;
+    {
       btn.fill('#777'); layer.draw(); 
     } 
   });
-  btn.on('mouseleave', ()=>{ btn.fill(fill_value); layer.draw(); });
+  btn.on('mouseleave', ()=> {
+    if (!window.menuAccessible && !btn.isPlayButton) return; { btn.fill(fill_value); layer.draw(); };
+  });
   
   btn.on('mouseover', function (e) { 
-    if ((text != "Object Menu" && text != "") || (text == "Object Menu" && menuAccessable)) {
+    if (!window.menuAccessible && !btn.isPlayButton) return;
+    
       e.target.getStage().container().style.cursor = 'pointer'; 
     }
-  });
+  );
   btn.on('mouseout', function (e) { e.target.getStage().container().style.cursor = 'default'; });
 
   btn.Text = txt;
@@ -294,6 +298,7 @@ function makeButton(x, y, w, h, text, layer, clickFn, fill_value = '#555') {
 uiLayer.add(new Konva.Rect({x:0, y:0, width:stage.width(), height:navbarHeight, fill:'#333'}));
 const menuButton = makeButton(0,0,menuWidth,navbarHeight,'Object Menu', uiLayer),
       playButton = makeButton(stage.width()-100,0,100,50,'Play', uiLayer, clickPlay);
+      playButton.isPlayButton = true;
 
 playButton.clicked = false;
 
@@ -465,7 +470,7 @@ function makeDraggable(circle) {
 // --- Tooltip ---
 function showTooltip(circle) {
   const data = circle.getAttr('data') || {};
-const tooltipWidth = 160;
+const tooltipWidth = 180;
 const tooltipHeight = 180; 
 const spacing = 10;
 
@@ -517,10 +522,13 @@ const tooltip = new Konva.Group({
 
   fields.forEach((field, i) => {
     const y = startY + i * lineHeight;
+
+    const value = data[field.key];
+    const roundedValue = typeof value === 'number' ? value.toFixed(3) : value;
     const t = new Konva.Text({
       x: box.x() + 10,
       y,
-      text: `${field.label}: ${data[field.key]}${field.suffix || ''}`,
+      text: `${field.label}: ${roundedValue}${field.suffix || ''}`,
       fontSize: 14,
       fill: '#fff',
       listening: field.editable // only editable lines will respond to events
@@ -593,7 +601,8 @@ const tooltip = new Konva.Group({
             }
 
             data[field.key] = val;
-            t.text(`${field.label}: ${val}${field.suffix || ''}`);
+            const displayValue = Number.isFinite(val) ? val.toFixed(3) : val;
+            t.text(`${field.label}: ${displayValue}${field.suffix || ''}`);
             backgroundLayer.draw();
           }
           document.body.removeChild(input);
@@ -663,6 +672,7 @@ const tooltip = new Konva.Group({
           deleteObject(circle);
         }
         backgroundLayer.draw();
+        stage.container().style.cursor = 'default';
       }
     });
     fadeOutTooltip.play();
@@ -722,7 +732,7 @@ celestialBodies.forEach((body, i) => {
       ? baseVisualRadius
       : Math.max(5, Math.pow(body.planetRadius / sunRadius, exponent) * baseVisualRadius);
 
-    // Create new planet clone using your helper
+    // Create new planet clone using helper
     const clone = createCircle(pos.x, pos.y, scaledRadius, body, true, true, backgroundLayer);
     backgroundLayer.add(clone);
     makeDraggable(clone);
@@ -904,7 +914,7 @@ function createCircleGroup(x, y, radius, body, draggable = false, fromMenu = fal
 let menuVisible=false;
 const menuTween = new Konva.Tween({ node: menuGroup, duration:0.4, y:navbarHeight, easing: Konva.Easings.EaseInOut });
 menuButton.on('click', ()=>{ 
-  if (menuAccessable) {
+  if (window.menuAccessible) {
     menuVisible = !menuVisible; menuVisible?menuTween.play():menuTween.reverse(); 
   }
 });
