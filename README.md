@@ -21,5 +21,5 @@ source venv/bin/activate
 pip install -r requirements.txt
 python app.py
 </pre>
-<p>Go live with test.html</p>
+<p>Then run the index.html file</p>
 
