@@ -16,6 +16,7 @@ function clickReset() {
 
 // function ran when planets are cleared
 function clickDelete() {
+    if (!window.menuAccessible) return;
     placedCircles.forEach(c => {
         c.getAttr('arrow').destroy();
         deleteObject(c);
@@ -81,9 +82,7 @@ function clickLayout2() {
 }
 
 function clickLayout3() {
-    placedCircles.forEach(c => {
-        c.destroy();
-    });
+    clickDelete();
 
     var x = stage.width()/2;
     var y = stage.height()/2 + navbarHeight/2;
@@ -97,9 +96,7 @@ function clickLayout3() {
 }
 
 function clickLayout4() {
-    placedCircles.forEach(c => {
-        c.destroy();
-    });
+    clickDelete();
 
     var x = stage.width()/2;
     var y = stage.height()/2 + navbarHeight/2;
