@@ -30,19 +30,21 @@ class SimulationManager:
         if not self.running:
             return self._get_planet_data_2()
 
-        # Apply gravity and handle collisions
-        for i, p1 in enumerate(self.planets):
-            for j, p2 in enumerate(self.planets):
-                if i == j:
-                    continue
-                p1.update_gravity(p2, self.dt)
-                if p1.update_collision(p2, self.dt):
-                    #  move the planet far far away
-                    p2.pos = Vector(-100000000, -200000000)
+        num_frames = 4
+        for frame in range(num_frames):
+            # Apply gravity and handle collisions
+            for i, p1 in enumerate(self.planets):
+                for j, p2 in enumerate(self.planets):
+                    if i == j:
+                        continue
+                    p1.update_gravity(p2, self.dt/num_frames)
+                    if p1.update_collision(p2, self.dt/num_frames):
+                        #  move the planet far far away
+                        p2.pos *= 2000
 
-        # Move all planets based on velocity
-        for p in self.planets:
-            p.update_movement(self.dt)
+            # Move all planets based on velocity
+            for p in self.planets:
+                p.update_movement(self.dt/num_frames)
 
         return self._get_planet_data_2()
 
