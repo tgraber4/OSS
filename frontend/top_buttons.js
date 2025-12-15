@@ -14,6 +14,7 @@ function clickReset() {
 
 // function ran when clear button pressed
 function clickDelete() {
+    if(!window.menuAccessible) return;
     placedCircles.forEach(c => {
         c.getAttr('arrow').destroy();
         deleteObject(c);
@@ -23,6 +24,7 @@ function clickDelete() {
 
 function toggle_layout_menu()
 {
+    if(!window.menuAccessible) return;
     layout_menu_visible = !layout_menu_visible;
     layout_menu_visible ? layoutMenuTween.play() : layoutMenuTween.reverse(); 
 }
