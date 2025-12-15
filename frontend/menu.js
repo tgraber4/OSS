@@ -44,12 +44,14 @@ var deleteObject = function (customObject) {
 }
 
 class playDataObject {
-    constructor(id, mass, velocity, posx, posy) {
+    constructor(id, mass, velocity, direction, posx, posy, planet_radius) {
         this.id = id;
         this.mass = mass;
-        this.speed = velocity;
+        this.velocity = velocity;
+        this.direction = direction;
         this.posx = posx;
         this.posy = posy;
+        this.radius = planet_radius;
     }
 }
 
@@ -60,42 +62,44 @@ var getParams = function () {
         var id = objects[i][1].getAttr('objIndex');
         var mass = objects[i][1].getAttr('data').mass
         var velocity = objects[i][1].getAttr('data').speed;
+        var direction = objects[i][1].getAttr('data').direction;
         var posx = objects[i][1].x();
         var posy = objects[i][1].y();
-        playDataObjects.push(new playDataObject(id, mass, velocity, posx, posy))
+        var planet_radius = objects[i][1].radius();
+        playDataObjects.push(new playDataObject(id, mass, velocity, direction, posx, posy, planet_radius))
     }
-    console.log(playDataObjects);
 }
 
 var updatePositions = function (positionArray) {
     for (var i = 0; i < positionArray.length; i++) {
         var index = getObjectIndexFromId(positionArray[i][0]);
         var physicalObject = objects[index][1];
-        physicalObject.x(positionArray[i][1])
+        physicalObject.x(positionArray[i][1]);
         physicalObject.y(positionArray[i][2])
     }
 }
 
+
 // Send initial planet data to backend to start simulation
 function sendPlayRequestToBackend() {
     getParams();
-    
+    console.log(playDataObjects);
     // Convert playDataObjects to the format your backend expects
     const planetsData = playDataObjects.map(obj => ({
         id: obj.id,
         pos: [obj.posx, obj.posy],
         mass: obj.mass,
         vel_mag: obj.velocity,
-        vel_deg: 0  // You might want to add a velocity direction field to your UI
+        vel_deg: obj.direction,
+        radius: obj.radius
     }));
-    
     fetch("http://127.0.0.1:5000/start_simulation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planets: planetsData })
     })
     .then(res => res.json())
-    .then(data => console.log("Simulation started:", data))
+    // .then(data => console.log("Simulation started:", data))
     .catch(error => console.error("Error starting simulation:", error));
 }
 
@@ -104,7 +108,6 @@ function getRequestFromBackend() {
     fetch("http://127.0.0.1:5000/update_positions")
     .then(res => res.json())
     .then(data => {
-        console.log("test");
         if (data.planets) {
             const positionArray = data.planets.map((planet) => {
                 return [planet.id, planet.pos[0], planet.pos[1]];
@@ -118,15 +121,32 @@ function getRequestFromBackend() {
 
 function sendPauseToBackend() {
   fetch("http://127.0.0.1:5000/pause_simulation", {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planets: planetsData })
     })
     .then(res => res.json())
-    .then(data => console.log("Simulation started:", data))
+    // .then(data => console.log("Simulation started:", data))
     .catch(error => console.error("Error starting simulation:", error));
 }
 
+function updateObjectsUponPause (data) {
+    console.log("Simulation paused:", data.planets.length)
+    for (var i =0; i < data.planets.length; i++) {
+        console.log(data.planets[i]["direction"])
+        var index = getObjectIndexFromId(data.planets[i]["id"]);
+        var physicalObject = objects[index][1];
+        physicalObject.x(data.planets[i]["pos"][0])
+        physicalObject.y(data.planets[i]["pos"][1])
+        let objData = physicalObject.getAttr('data')    
+        objData.speed = data.planets[i].vel;
+        objData.direction = data.planets[i]["direction"];    
+        physicalObject.setAttr('data', objData); 
+
+        physicalObject.getAttr('arrow').show();
+        update_arrow(physicalObject);
+    }
+}
 
 function clickPlay() {
     if (!playButton.clicked) {
@@ -134,6 +154,11 @@ function clickPlay() {
         playButton.clicked = true;
 
         sendPlayRequestToBackend();
+
+        placedCircles.forEach(c =>
+        {
+          c.getAttr('arrow').hide();
+        });
         
         // Start the update loop
         updateInterval = setInterval(() => {
@@ -154,11 +179,10 @@ function clickPlay() {
             method: "POST"
         })
         .then(res => res.json())
-        .then(data => console.log("Simulation paused:", data))
+        .then(data => updateObjectsUponPause(data))
         .catch(error => console.error("Error pausing simulation:", error));
     }
 }
-
 
 
 function update_arrow(circle)
@@ -363,6 +387,7 @@ function makeDraggable(circle) {
     if (idx !== -1) placedCircles.splice(idx, 1);
   } else {
     circle.moveToBottom();
+    console.log(circle);
     addObject(circle);
   }
 
@@ -500,7 +525,13 @@ const tooltip = new Konva.Group({
               val = Math.max(1, Math.min(celestialBodies[0].planetRadius, val));
               data[field.key] = val;
               circle.radius(Math.pow(val / celestialBodies[0].planetRadius, 0.3) * 50)
-
+              const img = circle.getAttr('imageObj');
+              if(img) {
+                const newRadius = circle.radius();
+                const scale = (2 * newRadius) / Math.min(img.width, img.height);
+                circle.fillPatternScale({ x: scale, y: scale });
+                circle.getLayer().batchDraw();
+              }
               resolveCollision(circle);
               t.text(`${field.label}: ${val}${field.suffix || ''}`);
               backgroundLayer.draw();
@@ -751,17 +782,22 @@ function createCircle(x, y, radius, body, draggable = false, fromMenu = false, l
 
     img.onload = () => {
       // Scale the image so it completely covers the circle
-      const scale = (2 * radius) / Math.max(img.width, img.height);
+      circle.fillPatternImage(null);
+
+      const scale = (2 * radius) / Math.min(img.width, img.height);
 
       circle.fillPatternImage(img);
       circle.fillPatternRepeat('no-repeat');
       circle.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
       circle.fillPatternScale({ x: scale, y: scale });
+      circle.setAttr('imageObj', img);
+      circle._clearCache('fillPatternImage');
+
 
       // Optional: remove fill fallback if desired
       // circle.fill(null);
 
-      layer.batchDraw();
+      circle.getLayer().batchDraw();
     };
   }
 
@@ -822,6 +858,19 @@ function createCircleGroup(x, y, radius, body, draggable = false, fromMenu = fal
 let menuVisible=false;
 const menuTween = new Konva.Tween({ node: menuGroup, duration:0.4, y:navbarHeight, easing: Konva.Easings.EaseInOut });
 menuButton.on('click', ()=>{ menuVisible = !menuVisible; menuVisible?menuTween.play():menuTween.reverse(); });
+
+
+const navTitleText = new Konva.Text({
+  x : 340,
+  y: 14,
+  text: 'Objects in Space Simulator',
+  fontSize: 20,
+  fontFamily: 'monospace',
+  fill: '#00d0ffff'
+});
+
+uiLayer.add(navTitleText);
+uiLayer.draw();
 
 backgroundLayer.draw();
 uiLayer.draw();
