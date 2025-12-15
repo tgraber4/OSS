@@ -1,25 +1,26 @@
 
 
 function clickReset() {
-    console.log(resetCopy)
-    clickDelete();
-    playcounter = 0;
-    objects = [];
-    for (var i = 0; i < resetCopy.length; i++) {
-        addObject(resetCopy[i]);
-        backgroundLayer.add(resetCopy[i])
-        console.log(resetCopy[i])
-    }
-    console.log(objects);
-    backgroundLayer.draw();
+    // console.log(resetCopy)
+    // clickDelete();
+    // playcounter = 0;
+    // objects = [];
+    // for (var i = 0; i < resetCopy.length; i++) {
+    //     addObject(resetCopy[i]);
+    //     backgroundLayer.add(resetCopy[i])
+    //     console.log(resetCopy[i])
+    // }
+    // console.log(objects);
+    // backgroundLayer.draw();
 }
 
-// function ran when clear button pressed
+// function ran when planets are cleared
 function clickDelete() {
     placedCircles.forEach(c => {
         c.getAttr('arrow').destroy();
         deleteObject(c);
     });
+    placedCircles.length = 0;
 }
 
 

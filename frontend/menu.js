@@ -33,6 +33,7 @@ var getObjectIndexFromId = function (id) {
             return i;
         }
     }
+    return -1;
 }
 
 var addObject = function (customObject) {
@@ -74,6 +75,9 @@ var getParams = function () {
 var updatePositions = function (positionArray) {
     for (var i = 0; i < positionArray.length; i++) {
         var index = getObjectIndexFromId(positionArray[i][0]);
+        if (index === -1) {
+          continue;
+        }
         var physicalObject = objects[index][1];
         physicalObject.x(positionArray[i][1])
         physicalObject.y(positionArray[i][2])
@@ -654,8 +658,10 @@ const tooltip = new Konva.Group({
         circle._tooltip = null;
         circle.getAttr('arrow').destroy();
         const idx = placedCircles.indexOf(circle);
-        if (idx !== -1) placedCircles.splice(idx, 1);
-        deleteObject(circle);
+        if (idx !== -1) {
+          placedCircles.splice(idx, 1);
+          deleteObject(circle);
+        }
         backgroundLayer.draw();
       }
     });
