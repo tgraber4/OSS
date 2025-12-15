@@ -73,12 +73,12 @@ class Planet:
     
     def update_collision(self, planet, dt):
         dist = self.pos-planet.pos
-        if (dist.mag() < (self.radius + planet.radius)/2):
-            new_planet = self.combine(planet)
-            self.pos = new_planet.pos
-            self.radius = new_planet.radius
-            self.mass = new_planet.mass
-            self.vel = new_planet.vel
+        if (dist.mag() < (self.radius + planet.radius)):
+            #new_planet = self.combine(planet)
+            #self.pos = new_planet.pos
+            #self.radius = new_planet.radius
+            #self.mass = new_planet.mass
+            #self.vel = new_planet.vel
             return True
         return False
     
@@ -168,14 +168,19 @@ while running:
         if event.type == pygame.QUIT:
             running = False
     
-    dt = 1/60
+    dt = 1/30
     for i in range(0, len(planets)):
         for j in range(0, len(planets)):
             if (i != j):
                 planets[i].update_gravity(planets[j], dt)
                 if planets[i].update_collision(planets[j], dt):
-                    # move the planet far far away
-                    planets[j].pos = Vector(-100000000, -20)
+                    actual_diff = planets[i].pos-planets[j].pos
+                    normal_diff = Vector(actual_diff.x/actual_diff.mag(), actual_diff.y/actual_diff.mag())
+                    
+                    diff = actual_diff - (normal_diff * (planets[i].radius+planets[j].radius))
+
+                    planets[i].pos = planets[i].pos + diff/1.99 - planets[i].vel*dt
+                    planets[j].pos = planets[j].pos - diff/1.99 - planets[j].vel*dt
     
     for planet in planets:
         planet.update_movement(dt)

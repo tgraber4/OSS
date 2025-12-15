@@ -1,9 +1,11 @@
-from math import cos, sin, pi, atan2
+from math import cos, sin, pi, atan2, degrees
+# terminal cd into backend
+# type: "flask run"
 
 class SimulationManager:
     def __init__(self):
         self.planets = []
-        self.dt = .5
+        self.dt = .1
         self.running = False
 
     def start(self, planets_data):
@@ -12,15 +14,17 @@ class SimulationManager:
         for obj in planets_data:
             thingid = obj.get("id", 0)
             pos = obj.get("pos", [0, 0])
-            mass = obj.get("mass", 1)
+            mass = obj.get("mass", 0)
             vel_mag = obj.get("vel_mag", 0)
             vel_deg = obj.get("vel_deg", 0)
 
+            radius = obj.get("radius", 10)
+
             # Convert polar velocity (magnitude + angle) to Cartesian (x, y)
             vx = vel_mag * cos(vel_deg * pi / 180)
-            vy = vel_mag * sin(vel_deg * pi / 180)
+            vy = -vel_mag * sin(vel_deg * pi / 180)
 
-            self.planets.append(Planet(thingid=thingid, p=pos, m=mass, v=(vx, vy)))
+            self.planets.append(Planet(thingid=thingid, p=pos, r=radius, m=mass, v=(vx, vy)))
         # Store initial planets as deep copies of Planet objects for reset
         self.running = True
 
@@ -29,19 +33,43 @@ class SimulationManager:
         if not self.running:
             return self._get_planet_data_2()
 
-        # Apply gravity and handle collisions
-        for i, p1 in enumerate(self.planets):
-            for j, p2 in enumerate(self.planets):
-                if i == j:
-                    continue
-                p1.update_gravity(p2, self.dt)
-                if p1.update_collision(p2, self.dt):
-                    #  move the planet far far away
-                    p2.pos = Vector(-100000000, -200000000)
+        num_frames = 4
+        for frame in range(num_frames):
+            # Apply gravity and handle collisions
+            for i, p1 in enumerate(self.planets):
+                for j, p2 in enumerate(self.planets):
+                    if i == j:
+                        continue
+                    p1.update_gravity(p2, self.dt/num_frames)
+            
+            for i, p1 in enumerate(self.planets):
+                for j in range(i+1, len(self.planets)):
+                    p2 = self.planets[j]
+                    if p1.update_collision(p2, self.dt/num_frames):
+                        actual_diff = p1.pos-p2.pos
+                        if actual_diff.mag() == 0:
+                            continue
+                        
+                        normal_diff = Vector(actual_diff.x/actual_diff.mag(), actual_diff.y/actual_diff.mag())
+                        
+                        diff = actual_diff - (normal_diff * (p1.radius+p2.radius))
 
-        # Move all planets based on velocity
-        for p in self.planets:
-            p.update_movement(self.dt)
+                        v1 = (p1.vel.x*normal_diff.x + p1.vel.y*normal_diff.y)
+                        v2 = (p2.vel.x*normal_diff.x + p2.vel.y*normal_diff.y)
+                        m1 = p1.mass
+                        m2 = p2.mass
+
+
+                        # cancel out the velocity in this direction
+                        p1.vel -= normal_diff * v1
+                        p2.vel -= normal_diff * v2
+
+                        p1.vel += normal_diff * ((m1*v1 - m2*v1 + 2*m2*v2) / (m1+m2))
+                        p2.vel += normal_diff * ((m2*v2 - m1*v2 + 2*m1*v1) / (m1+m2))
+
+            # Move all planets based on velocity
+            for p in self.planets:
+                p.update_movement(self.dt/num_frames)
 
         return self._get_planet_data_2()
 
@@ -59,8 +87,9 @@ class SimulationManager:
     
     def _get_planet_data(self):
         """Helper to return all planet info in JSON-friendly format."""
-        return [ # (p.vel.x**2, p.vel.y**2)**0.5, atan2(-p.vel.y, p.vel.x)
-            {"id": p.thingid, "pos": [p.pos.x, p.pos.y], "vel": [p.vel.x, p.vel.y]}
+        return [ # (p.vel.x**2 + p.vel.y**2)**0.5, atan2(-p.vel.y, p.vel.x)
+            {"id": p.thingid, "pos": [p.pos.x, p.pos.y], "vel": (p.vel.x**2 + p.vel.y**2)**0.5, "direction":
+             degrees(atan2(-p.vel.y, p.vel.x))} # (degrees(atan2(p.vel.y, p.vel.x))+360)%360
             for p in self.planets
         ]
 
@@ -70,6 +99,9 @@ class Vector:
         self.x = x
         self.y = y
         
+    def __equal__(self, vector):
+        return Vector(vector.x, vector.y)
+    
     def __add__(self, vector):
         return Vector(self.x+vector.x, self.y+vector.y)
     def __sub__(self, vector):
@@ -102,7 +134,7 @@ class Vector:
 
 class Planet:
     
-    def __init__(self, thingid=0, p = (0.0, 0.0), r = 14, m = 50000, v = (0.0, 0.0), s = False):
+    def __init__(self, thingid=0, p = (0.0, 0.0), r = 8, m = 50000, v = (0.0, 0.0), s = False):
         self.thingid = thingid
         self.pos = Vector(p[0], p[1])
         self.radius = r
@@ -130,12 +162,12 @@ class Planet:
     
     def update_collision(self, planet, dt):
         dist = self.pos-planet.pos
-        if (dist.mag() < (self.radius + planet.radius)/2):
-            new_planet = self.combine(planet)
+        if (dist.mag() < (self.radius + planet.radius)):
+            '''new_planet = self.combine(planet)
             self.pos = new_planet.pos
             self.radius = new_planet.radius
             self.mass = new_planet.mass
-            self.vel = new_planet.vel
+            self.vel = new_planet.vel'''
             return True
         return False
     
