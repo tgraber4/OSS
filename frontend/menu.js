@@ -21,6 +21,11 @@ let updateInterval = null;
 var objects = [];
 var playDataObjects = [];
 var objectsCurIndex = 0;
+var playcounter = 0;
+
+var resetCopy = [];
+
+var menuAccessable = true;
 
 var getObjectIndexFromId = function (id) {
     for (var i=0; i < objects.length; i++) {
@@ -34,8 +39,6 @@ var addObject = function (customObject) {
     customObject.setAttr('objIndex', objectsCurIndex);
     objects.push([objectsCurIndex, customObject]);
     objectsCurIndex++;
-    getParams();
-    
 }
 
 var deleteObject = function (customObject) {
@@ -44,10 +47,11 @@ var deleteObject = function (customObject) {
 }
 
 class playDataObject {
-    constructor(id, mass, velocity, posx, posy) {
+    constructor(id, mass, velocity, direction, posx, posy) {
         this.id = id;
         this.mass = mass;
         this.velocity = velocity;
+        this.direction = direction;
         this.posx = posx;
         this.posy = posy;
     }
@@ -59,12 +63,12 @@ var getParams = function () {
     for (var i = 0; i < objects.length; i++) {
         var id = objects[i][1].getAttr('objIndex');
         var mass = objects[i][1].getAttr('data').mass
-        var velocity = objects[i][1].getAttr('data').velocity;
+        var velocity = objects[i][1].getAttr('data').speed;
+        var direction = objects[i][1].getAttr('data').direction;
         var posx = objects[i][1].x();
         var posy = objects[i][1].y();
-        playDataObjects.push(new playDataObject(id, mass, velocity, posx, posy))
+        playDataObjects.push(new playDataObject(id, mass, velocity, direction, posx, posy))
     }
-    console.log(playDataObjects);
 }
 
 var updatePositions = function (positionArray) {
@@ -76,26 +80,25 @@ var updatePositions = function (positionArray) {
     }
 }
 
+
 // Send initial planet data to backend to start simulation
 function sendPlayRequestToBackend() {
     getParams();
     
-    // Convert playDataObjects to the format your backend expects
     const planetsData = playDataObjects.map(obj => ({
         id: obj.id,
         pos: [obj.posx, obj.posy],
         mass: obj.mass,
         vel_mag: obj.velocity,
-        vel_deg: 0  // You might want to add a velocity direction field to your UI
+        vel_deg: obj.direction
     }));
-    
     fetch("http://127.0.0.1:5000/start_simulation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planets: planetsData })
     })
     .then(res => res.json())
-    .then(data => console.log("Simulation started:", data))
+    // .then(data => console.log("Simulation started:", data))
     .catch(error => console.error("Error starting simulation:", error));
 }
 
@@ -104,7 +107,6 @@ function getRequestFromBackend() {
     fetch("http://127.0.0.1:5000/update_positions")
     .then(res => res.json())
     .then(data => {
-        console.log("test");
         if (data.planets) {
             const positionArray = data.planets.map((planet) => {
                 return [planet.id, planet.pos[0], planet.pos[1]];
@@ -118,31 +120,75 @@ function getRequestFromBackend() {
 
 function sendPauseToBackend() {
   fetch("http://127.0.0.1:5000/pause_simulation", {
-        method: "GET",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planets: planetsData })
     })
     .then(res => res.json())
-    .then(data => console.log("Simulation started:", data))
+    // .then(data => console.log("Simulation started:", data))
     .catch(error => console.error("Error starting simulation:", error));
 }
 
+function updateObjectsUponPause (data) {
+    for (var i =0; i < data.planets.length; i++) {
+        console.log(data.planets[i]["direction"])
+        var index = getObjectIndexFromId(data.planets[i]["id"]);
+        var physicalObject = objects[index][1];
+        physicalObject.x(data.planets[i]["pos"][0])
+        physicalObject.y(data.planets[i]["pos"][1])
+        let objData = physicalObject.getAttr('data')    
+        objData.speed = data.planets[i].vel; 
+        objData.direction = data.planets[i]["direction"];    
+        physicalObject.setAttr('data', objData); 
 
+        physicalObject.getAttr('arrow').show();
+        update_arrow(physicalObject);
+    }
+    
+}
+
+// function ran when Play button pressed
 function clickPlay() {
     if (!playButton.clicked) {
         playButton.Text.setAttr('text', 'Pause');
         playButton.clicked = true;
 
         sendPlayRequestToBackend();
+
+        for (var i = 0; i < objects.length; i++) {
+          makeNotDraggable(objects[i][1]);
+        }
+
+        if (playcounter == 0) {
+          // reset copy
+        }
+
+        menuAccessable = false;
+        if (menuVisible) { 
+          menuTween.reverse();
+          menuVisible = false;
+        }
+
+        placedCircles.forEach(c =>
+        {
+          c.getAttr('arrow').hide();
+        });
         
         // Start the update loop
         updateInterval = setInterval(() => {
             getRequestFromBackend()
         }, 17); // ~60 FPS
 
+        playcounter++;
     } else {
         playButton.Text.setAttr('text', 'Play');
         playButton.clicked = false;
+
+        for (var i = 0; i < objects.length; i++) {
+          makeDraggable(objects[i][1]);
+        }
+
+        menuAccessable = true;
 
         // Stop the update loop
         if (updateInterval) {
@@ -154,12 +200,24 @@ function clickPlay() {
             method: "POST"
         })
         .then(res => res.json())
-        .then(data => console.log("Simulation paused:", data))
+        .then(data => updateObjectsUponPause(data))
         .catch(error => console.error("Error pausing simulation:", error));
     }
 }
 
 
+function update_arrow(circle)
+{
+  const data = circle.getAttr('data') || {};
+  const arrow = circle.getAttr('arrow') || {};
+
+  arrow.setAttr('x', circle.x());
+  arrow.setAttr('y', circle.y());
+
+  arrow.setAttr('points', [0, 0, 2*data.speed*Math.cos(data.direction*3.14159/180), -2*data.speed*Math.sin(data.direction*3.14159/180)]);
+  arrow.setAttr('pointerLength', Math.min(data.speed*0.25, 10));
+  arrow.setAttr('pointerWidth', Math.min(data.speed*0.25, 10));
+}
 
 
 
@@ -207,10 +265,18 @@ function makeButton(x, y, w, h, text, layer, clickFn, fill_value = '#555') {
   const txt = new Konva.Text({x: x + w/2, y: y + h/2, text, fontSize: 16, fill: 'white', listening: false});
   txt.offsetX(txt.width()/2); txt.offsetY(txt.height()/2);
   layer.add(btn, txt);
-  btn.on('mouseenter', ()=>{ btn.fill('#777'); layer.draw(); });
+  btn.on('mouseenter', ()=>{ 
+    if ((text != "Object Menu" && text != "") || (text == "Object Menu" && menuAccessable)) {
+      btn.fill('#777'); layer.draw(); 
+    } 
+  });
   btn.on('mouseleave', ()=>{ btn.fill(fill_value); layer.draw(); });
   
-  btn.on('mouseover', function (e) { e.target.getStage().container().style.cursor = 'pointer'; });
+  btn.on('mouseover', function (e) { 
+    if ((text != "Object Menu" && text != "") || (text == "Object Menu" && menuAccessable)) {
+      e.target.getStage().container().style.cursor = 'pointer'; 
+    }
+  });
   btn.on('mouseout', function (e) { e.target.getStage().container().style.cursor = 'default'; });
 
   btn.Text = txt;
@@ -263,6 +329,17 @@ function inDeleteZone(circle) {
          c.y+c.height/2>dz.y && c.y+c.height/2<dz.y+dz.height;
 }
 
+function makeNotDraggable(circle) {
+  // Disable draggability
+  circle.draggable(false);
+
+  // Remove specific event handlers
+  circle.off('dragstart');
+  circle.off('dragmove');
+  circle.off('dragend');
+  circle.off('click');
+}
+
 // --- Make circle draggable with collision prevention ---
 function makeDraggable(circle) {
   circle.draggable(true);
@@ -296,12 +373,17 @@ function makeDraggable(circle) {
     } else {
       deleteZone.opacity(0.6);
       deleteZone.shadowBlur(0);
+
+      update_arrow(circle);
     }
 
     backgroundLayer.batchDraw();
   });
 
   circle.on('dragend', () => {
+
+  update_arrow(circle);
+
   const maxIterations = 10; // prevent infinite loop
   let iteration = 0;
   let collided = true;
@@ -340,11 +422,14 @@ function makeDraggable(circle) {
   // Delete zone logic
   if (inDeleteZone(circle)) {
     deleteObject(circle);
+    circle.getAttr('arrow').destroy();
     const idx = placedCircles.indexOf(circle);
     if (idx !== -1) placedCircles.splice(idx, 1);
   } else {
     circle.moveToBottom();
-    addObject(circle);
+    if (circle.getAttr('fromMenu')) {
+      addObject(circle);
+    }
   }
 
   deleteZone.hide();
@@ -376,15 +461,15 @@ function makeDraggable(circle) {
 // --- Tooltip ---
 function showTooltip(circle) {
   const data = circle.getAttr('data') || {};
-  const tooltipWidth = 160;  // width of tooltip box
-const tooltipHeight = 180; // height of tooltip box
+const tooltipWidth = 180;
+const tooltipHeight = 180; 
 const spacing = 10;
 
-// horizontal: center above the circle
+
 let tooltipX = circle.x() - tooltipWidth / 2;
 
-// vertical: just above the circle, but not above navbar
-let tooltipY = circle.y() - circle.radius() - tooltipHeight - spacing; // 10px spacing
+
+let tooltipY = circle.y() - circle.radius() - tooltipHeight - spacing;
 
 if (tooltipY < navbarHeight + spacing) {
   tooltipY = circle.y() + circle.radius() + spacing;
@@ -428,10 +513,13 @@ const tooltip = new Konva.Group({
 
   fields.forEach((field, i) => {
     const y = startY + i * lineHeight;
+
+    const value = data[field.key];
+    const roundedValue = typeof value === 'number' ? value.toFixed(3) : value;
     const t = new Konva.Text({
       x: box.x() + 10,
       y,
-      text: `${field.label}: ${data[field.key]}${field.suffix || ''}`,
+      text: `${field.label}: ${roundedValue}${field.suffix || ''}`,
       fontSize: 14,
       fill: '#fff',
       listening: field.editable // only editable lines will respond to events
@@ -481,7 +569,13 @@ const tooltip = new Konva.Group({
               val = Math.max(1, Math.min(celestialBodies[0].planetRadius, val));
               data[field.key] = val;
               circle.radius(Math.pow(val / celestialBodies[0].planetRadius, 0.3) * 50)
-
+              const img = circle.getAttr('imageObj');
+              if(img) {
+                const newRadius = circle.radius();
+                const scale = (2 * newRadius) / Math.min(img.width, img.height);
+                circle.fillPatternScale({ x: scale, y: scale });
+                circle.getLayer().batchDraw();
+              }
               resolveCollision(circle);
               t.text(`${field.label}: ${val}${field.suffix || ''}`);
               backgroundLayer.draw();
@@ -489,14 +583,17 @@ const tooltip = new Konva.Group({
             if(field.key === 'speed') {
               val = Math.max(0, Math.min(500, val)) 
               data[field.key] = val;
+              update_arrow(circle);
             }
             if(field.key === 'direction') {
               val = ((val % 360) + 360) % 360;
               data[field.key] = val;
+              update_arrow(circle);
             }
 
             data[field.key] = val;
-            t.text(`${field.label}: ${val}${field.suffix || ''}`);
+            const displayValue = Number.isFinite(val) ? val.toFixed(3) : val;
+            t.text(`${field.label}: ${displayValue}${field.suffix || ''}`);
             backgroundLayer.draw();
           }
           document.body.removeChild(input);
@@ -504,7 +601,10 @@ const tooltip = new Konva.Group({
 
         input.addEventListener('blur', commit);
         input.addEventListener('keydown', (evt) => {
-          if (evt.key === 'Enter') input.blur();
+          if (evt.key === 'Enter')
+            {
+              input.blur();
+            }
         });
       });
     }
@@ -556,7 +656,7 @@ const tooltip = new Konva.Group({
       onFinish: () => {
         tooltip.destroy();
         circle._tooltip = null;
-        circle.destroy();
+        circle.getAttr('arrow').destroy();
         const idx = placedCircles.indexOf(circle);
         if (idx !== -1) placedCircles.splice(idx, 1);
         deleteObject(circle);
@@ -634,7 +734,7 @@ celestialBodies.forEach((body, i) => {
 
 
 
-// --- Scroll menu content with wheel (smooth) ---
+// --- Scroll menu content with wheel  ---
 let menuScrollOffset = 0;
 const totalHeight = colors.length*spacing + 120;
 const maxScroll = Math.max(0, totalHeight - menuClipHeight);
@@ -644,7 +744,7 @@ stage.on('wheel', (e)=>{
   if(!pointer) return;
   if(pointer.x <= menuWidth && pointer.y >= navbarHeight){
     e.evt.preventDefault();
-    menuScrollOffset += e.evt.deltaY * 0.5; // scaled smooth
+    menuScrollOffset += e.evt.deltaY * 0.5;
     menuScrollOffset = Math.max(0, Math.min(maxScroll, menuScrollOffset));
     menuContentGroup.y(-menuScrollOffset);
     backgroundLayer.batchDraw();
@@ -706,23 +806,42 @@ function createCircle(x, y, radius, body, draggable = false, fromMenu = false, l
   circle.setAttr('data', { ...body });
   circle.setAttr('fromMenu', fromMenu);
 
+  const arrow = new Konva.Arrow({
+    x: circle.x(),
+    y: circle.y(),
+    points: [0, 0, 2*vel_mag*Math.cos(vel_dir*3.14159/180), -2*vel_mag*Math.sin(vel_dir*3.14159/180)],
+    pointerLength: Math.min(vel_mag*0.25, 10),
+    pointerWidth: Math.min(vel_mag*0.25, 10),
+    fill: 'white',
+    stroke: 'white',
+    strokeWidth: 4
+  });
+
+  layer.add(arrow);
+  circle.setAttr("arrow", arrow);
+
   if (body.image) {
     const img = new Image();
     img.src = body.image;
 
     img.onload = () => {
       // Scale the image so it completely covers the circle
-      const scale = (2 * radius) / Math.max(img.width, img.height);
+      circle.fillPatternImage(null);
+
+      const scale = (2 * radius) / Math.min(img.width, img.height);
 
       circle.fillPatternImage(img);
       circle.fillPatternRepeat('no-repeat');
       circle.fillPatternOffset({ x: img.width / 2, y: img.height / 2 });
       circle.fillPatternScale({ x: scale, y: scale });
+      circle.setAttr('imageObj', img);
+      circle._clearCache('fillPatternImage');
+
 
       // Optional: remove fill fallback if desired
       // circle.fill(null);
 
-      layer.batchDraw();
+      circle.getLayer().batchDraw();
     };
   }
 
@@ -782,7 +901,24 @@ function createCircleGroup(x, y, radius, body, draggable = false, fromMenu = fal
 // --- Menu tween ---
 let menuVisible=false;
 const menuTween = new Konva.Tween({ node: menuGroup, duration:0.4, y:navbarHeight, easing: Konva.Easings.EaseInOut });
-menuButton.on('click', ()=>{ menuVisible = !menuVisible; menuVisible?menuTween.play():menuTween.reverse(); });
+menuButton.on('click', ()=>{ 
+  if (menuAccessable) {
+    menuVisible = !menuVisible; menuVisible?menuTween.play():menuTween.reverse(); 
+  }
+});
+
+
+const navTitleText = new Konva.Text({
+  x : 340,
+  y: 14,
+  text: 'Objects in Space Simulator',
+  fontSize: 20,
+  fontFamily: 'monospace',
+  fill: '#00d0ffff'
+});
+
+uiLayer.add(navTitleText);
+uiLayer.draw();
 
 backgroundLayer.draw();
 uiLayer.draw();
